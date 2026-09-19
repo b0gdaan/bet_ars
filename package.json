@@ -1,0 +1,17 @@
+{
+  "name": "cs2-match-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local, free CS2 match research workbench with a Glicko-2 + logistic pre-match model",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test",
+    "sync": "node --disable-warning=ExperimentalWarning src/cli.js",
+    "check": "node --check src/server.js && node --check src/model.js && node --check src/analytics.js && node --check public/app.js",
+    "site": "node --disable-warning=ExperimentalWarning src/export-site.js"
+  }
+}

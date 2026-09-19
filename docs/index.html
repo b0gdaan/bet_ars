@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CS2 Match Lab — демонстрация</title>
+<meta name="description" content="Предматчевая модель Counter-Strike 2: Glicko-2 и логистическая регрессия на 40 тысячах профессиональных матчей.">
+<link rel="icon" href="favicon.svg">
+<style>
+:root{color-scheme:dark;--bg:#101318;--panel:#191d24;--panel2:#1e232b;--line:#2c323b;--text:#e9ebee;--muted:#9199a7;--accent:#f09a62;--green:#89c5a4;--red:#e78c8b;--blue:#91add5;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);line-height:1.55}
+a{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px 64px}
+header.top{border-bottom:1px solid var(--line);background:#15191f}
+.head-in{max-width:1080px;margin:0 auto;padding:22px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.logo{width:38px;height:38px;border-radius:10px;background:var(--accent);color:#17191c;display:grid;place-items:center;font-weight:900;font-size:22px}
+.brand b{letter-spacing:-.6px;font-size:17px}
+.brand small{display:block;color:var(--muted);font-size:11px;letter-spacing:2px}
+.pill{margin-left:auto;border:1px solid var(--line);border-radius:999px;padding:5px 12px;color:var(--muted);font-size:12px}
+h1{font-size:30px;letter-spacing:-1px;margin:34px 0 8px}
+h2{font-size:17px;margin:0;letter-spacing:-.3px}
+.eyebrow{color:var(--accent);font-size:11px;letter-spacing:2.4px;margin-top:30px}
+.lead{color:var(--muted);max-width:70ch;margin:0 0 6px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin:22px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.card .label{color:var(--muted);font-size:12px}
+.card .value{font-size:26px;font-weight:700;letter-spacing:-1px;margin-top:6px}
+.card .note{color:var(--muted);font-size:12px;margin-top:2px}
+.card.hi{border-color:var(--accent)}
+.card.hi .value{color:var(--accent)}
+section.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;margin:18px 0;overflow:hidden}
+.panel-head{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--line);background:var(--panel2);flex-wrap:wrap}
+.panel-body{padding:16px 18px}
+.tag{border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;letter-spacing:1.4px;color:var(--muted)}
+.tag.green{color:var(--green);border-color:#35564a}
+.tag.orange{color:var(--accent);border-color:#5b4330}
+.tbl{width:100%;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:11px;letter-spacing:1.2px;color:var(--muted);padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid #232830;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right}
+tr.best td{background:#1f242c}
+tr.best td:first-child{color:var(--accent);font-weight:700}
+.muted{color:var(--muted)}
+.two{display:grid;gap:18px;grid-template-columns:1.25fr 1fr;align-items:start}
+.picker{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+select,input{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:10px 12px;width:100%}
+.prob{display:flex;align-items:baseline;justify-content:space-between;margin-top:20px}
+.prob b{font-size:34px;letter-spacing:-1.5px}
+.prob b.low{color:var(--muted);font-size:26px}
+.bar{height:9px;border-radius:99px;background:#2b313a;overflow:hidden;margin-top:8px}
+.bar span{display:block;height:100%;background:var(--accent)}
+.side{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-top:9px;gap:10px}
+.mini{font-size:12px;color:var(--muted);margin-top:14px}
+ol{margin:0;padding-left:18px}
+ol li{margin-bottom:6px}
+.dots i{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:5px;background:#2f3a33;color:var(--green);font-style:normal;font-size:10px;font-weight:700;margin-right:3px}
+.dots i.l{background:#3a2e2e;color:var(--red)}
+svg.cal{width:100%;height:auto}
+svg.cal text{fill:var(--muted);font-size:11px}
+footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:34px;padding-top:18px}
+@media(max-width:820px){.two{grid-template-columns:1fr}h1{font-size:25px}}
+@media(max-width:520px){.prob span{display:none}.prob b{font-size:30px}.picker{grid-template-columns:1fr}.picker span{text-align:center}}
+</style>
+</head>
+<body>
+<header class="top"><div class="head-in">
+  <div class="logo">M</div>
+  <div class="brand"><b>MATCH LAB</b><small>COUNTER-STRIKE 2</small></div>
+  <span class="pill" id="stamp">снимок загружается…</span>
+</div></header>
+
+<div class="wrap">
+  <div class="eyebrow">CS2 / PRE-MATCH PREDICTION</div>
+  <h1>Кто победит в серии — и насколько модель в этом уверена</h1>
+  <p class="lead">Статическая витрина исследовательского прототипа. Все числа ниже посчитаны на реальной истории профессиональных матчей BO3 одним walk-forward проходом: рейтинг обновляется только после окончания матча, веса регрессии подобраны без тестовой выборки. Живое приложение с импортом данных работает локально, здесь — снимок его состояния.</p>
+
+  <div class="grid" id="stats"></div>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Прогноз на матч</h2><span class="tag orange">GLICKO-2 + РЕГРЕССИЯ</span></div>
+    <div class="panel-body">
+      <div class="picker">
+        <select id="a" aria-label="Первая команда"></select><span class="muted">VS</span><select id="b" aria-label="Вторая команда"></select>
+      </div>
+      <div id="out"></div>
+      <p class="mini">Вероятность считается в браузере из тех же весов и того же состояния рейтингов, что и на сервере: расхождение проверяется при сборке снимка. Это оценка модели, а не предсказание результата и не совет для ставок.</p>
+    </div>
+  </section>
+
+  <div class="two">
+    <section class="panel">
+      <div class="panel-head"><h2>Сравнение моделей на отложенной выборке</h2><span class="tag" id="testinfo"></span></div>
+      <div class="tbl"><table id="models"><thead><tr><th>Модель</th><th class="num">Log loss ↓</th><th class="num">Brier ↓</th><th class="num">Accuracy ↑</th></tr></thead><tbody></tbody></table></div>
+      <div class="panel-body mini" id="modelnote"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Калибровка</h2></div>
+      <div class="panel-body"><div id="cal"></div>
+        <p class="mini">Точка — интервал предсказанной вероятности, вертикаль — фактическая доля побед. Чем ближе к диагонали, тем честнее вероятности. Размер точки — число матчей.</p>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Рейтинг команд</h2><input id="q" placeholder="Поиск по названию…" style="max-width:260px"></div>
+    <div class="tbl"><table id="teams"><thead><tr><th>#</th><th>Команда</th><th class="num">Матчи</th><th class="num">Победы</th><th class="num">Рейтинг</th><th class="num">RD</th><th>Форма</th></tr></thead><tbody></tbody></table></div>
+    <div class="panel-body mini">Glicko-2 внутри загруженной выборки: 1500 ± 350 при первом появлении. RD — неопределённость рейтинга, она растёт во время простоя и сужается после матчей. Сильный рейтинг в слабом регионе не означает высокого места в мире.</div>
+  </section>
+
+  <div class="two">
+    <section class="panel">
+      <div class="panel-head"><h2>Как устроена проверка</h2><span class="tag green">БЕЗ УТЕЧЕК</span></div>
+      <div class="panel-body"><ol>
+        <li>Матчи идут строго по времени начала.</li>
+        <li>Результат попадает в рейтинги только после времени окончания матча; если времени нет, он откладывается на 24 часа.</li>
+        <li>Матч, идущий параллельно, не влияет на прогноз соседнего.</li>
+        <li>Первые 80% истории — разогрев и обучение весов, последние 20% — оценка.</li>
+        <li>Параметры выбраны на отдельном окне внутри разогрева; тестовая выборка при подборе не использовалась.</li>
+        <li>Винрейты по картам сознательно не входят в признаки: veto происходит перед матчем и протекает в прогноз.</li>
+      </ol></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Веса признаков</h2></div>
+      <div class="tbl"><table id="weights"><thead><tr><th>Признак</th><th class="num">Вес</th></tr></thead><tbody></tbody></table></div>
+      <div class="panel-body mini">Свободный член равен нулю, обучение идёт на зеркальных строках, поэтому p(A,B) + p(B,A) = 1 тождественно. Почти весь сигнал даёт логит Glicko-2; доля побед и форма коллинеарны рейтингу и самостоятельного вклада не дают.</div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Последние матчи в снимке</h2><span class="tag">BO3</span></div>
+    <div class="tbl"><table id="recent"><thead><tr><th>Дата</th><th>Встреча</th><th>Турнир</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <footer>
+    Ориентир из литературы: <a href="https://arxiv.org/abs/2410.02831">Skill Issues (Кембридж, 2024)</a> — 64.1% у лучшей системы на 9 929 матчах HLTV; открытый <a href="https://github.com/ppxdpp17/CS2-Predictor">CS2-Predictor</a> — 63.2% у логистической регрессии. 63–65% — нормальный потолок предматчевого прогноза по результатам серий.<br>
+    Источник данных — публичный неофициальный API bo3.gg. Это исследовательский прототип, а не сервис прогнозов и не основание для ставок. <a href="https://github.com/b0gdaan/bet_ars">Исходный код</a>.
+  </footer>
+</div>
+
+<script>
+const SCALE=173.7178, g=phi=>1/Math.sqrt(1+3*phi*phi/Math.PI**2);
+const pct=n=>n===null||n===undefined?'—':(n*100).toFixed(1)+'%';
+const dec=(n,d=4)=>n===null||n===undefined?'—':Number(n).toFixed(d);
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(n??0);
+const day=s=>s?new Date(s).toLocaleDateString('ru-RU',{day:'2-digit',month:'short',year:'numeric'}):'—';
+const short=s=>s?new Date(s).toLocaleDateString('ru-RU',{day:'2-digit',month:'short'}):'—';
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const el=s=>document.querySelector(s);
+
+fetch('data.json').then(r=>r.json()).then(d=>{
+  const byId=new Map(d.teams.map(t=>[t.id,t]));
+  el('#stamp').textContent='снимок от '+day(d.generated);
+
+  const t=d.totals;
+  el('#stats').innerHTML=[
+    ['Матчей в выборке',fmt(t.matches),short(t.first)+' — '+day(t.last),''],
+    ['Команд',fmt(t.teams),'в рейтинге показаны первые '+d.teams.length,''],
+    ['Accuracy на тесте',pct(d.backtest.models.find(m=>m.production).accuracy),fmt(d.backtest.models[0].count)+' матчей, которых модель не видела','hi'],
+    ['Log loss',dec(d.backtest.models.find(m=>m.production).logLoss),'0.6931 у монетки — меньше лучше','']
+  ].map(([l,v,n,c])=>`<div class="card ${c}"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`).join('');
+
+  el('#testinfo').textContent='ТЕСТ С '+day(d.backtest.testFrom).toUpperCase();
+  const rows=[...d.backtest.models,{label:'Всегда 50/50',...d.backtest.baseline,production:false}];
+  el('#models tbody').innerHTML=rows.map(m=>`<tr class="${m.production?'best':''}"><td>${esc(m.label)}</td><td class="num">${dec(m.logLoss)}</td><td class="num">${dec(m.brier)}</td><td class="num">${pct(m.accuracy)}</td></tr>`).join('');
+  const e=d.backtest.experienced;
+  el('#modelnote').innerHTML=`Разогрев — ${fmt(d.backtest.warmup)} матчей. Отдельно для команд с ≥10 предыдущими матчами: ${fmt(e?.count)} наблюдений, accuracy ${pct(e?.accuracy)}, log loss ${dec(e?.logLoss)}. Холодный старт (&lt;5 матчей у команды): ${fmt(d.backtest.cold)} матчей теста.`;
+
+  const bins=d.backtest.calibration;
+  el('#cal').innerHTML=`<svg class="cal" viewBox="0 0 380 300" role="img" aria-label="Калибровка вероятностей">
+    <path d="M45 15V245H360" fill="none" stroke="#414c5a"/>
+    ${[0,.25,.5,.75,1].map(v=>`<line x1="45" y1="${245-v*225}" x2="360" y2="${245-v*225}" stroke="#2b3542"/><text x="12" y="${249-v*225}">${v*100}</text><text x="${36+v*310}" y="265">${v*100}</text>`).join('')}
+    <line x1="45" y1="245" x2="355" y2="20" stroke="#667585" stroke-dasharray="5 5"/>
+    ${bins.map(b=>`<circle cx="${45+b.predicted*310}" cy="${245-b.actual*225}" r="${Math.min(13,4+Math.sqrt(b.count)/2)}" fill="#efa268" fill-opacity=".85"><title>${b.count} матчей: прогноз ${pct(b.predicted)}, факт ${pct(b.actual)}</title></circle>`).join('')}
+    <text x="100" y="288">Предсказанная вероятность, %</text><text x="12" y="12">Факт, %</text></svg>`;
+
+  el('#weights tbody').innerHTML=d.model.features.map((f,i)=>`<tr><td>${esc(f)}</td><td class="num" style="color:${d.model.weights[i]>0?'var(--green)':'var(--red)'}">${dec(d.model.weights[i],3)}</td></tr>`).join('');
+
+  el('#recent tbody').innerHTML=d.recent.map(m=>`<tr><td class="muted">${short(m.start)}</td><td><b style="color:${m.winnerA?'var(--text)':'var(--muted)'}">${esc(m.teamA)}</b> <span class="muted">${m.scoreA??'—'}:${m.scoreB??'—'}</span> <b style="color:${m.winnerA?'var(--muted)':'var(--text)'}">${esc(m.teamB)}</b></td><td class="muted">${esc(m.event)}</td></tr>`).join('');
+
+  const drawTeams=q=>{
+    const list=d.teams.filter(t=>t.name.toLowerCase().includes(q.toLowerCase())).slice(0,120);
+    el('#teams tbody').innerHTML=list.length?list.map((t,i)=>`<tr><td class="muted">${d.teams.indexOf(t)+1}</td><td>${esc(t.name)}</td><td class="num">${t.played}</td><td class="num">${pct(t.winRate)}</td><td class="num" style="color:var(--accent)">${Math.round(t.rating)}</td><td class="num muted">±${Math.round(t.rd)}</td><td class="dots">${dots(t.form)}</td></tr>`).join(''):'<tr><td colspan="7" class="muted">Ничего не найдено</td></tr>';
+  };
+  const dots=form=>{const w=Math.round((form??.5)*5);return Array.from({length:5},(_,i)=>`<i class="${i<w?'':'l'}">${i<w?'W':'L'}</i>`).join('');};
+  drawTeams('');
+  el('#q').oninput=ev=>drawTeams(ev.target.value);
+
+  const options=d.teams.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+  el('#a').innerHTML=options;el('#b').innerHTML=options;
+  el('#a').value=d.teams[0].id;el('#b').value=d.teams[1].id;
+
+  const predict=(x,y)=>{
+    const key=x.id<y.id?x.id+'|'+y.id:y.id+'|'+x.id;
+    const raw=d.h2h[key]||[0,0],hA=x.id<y.id?raw[0]:raw[1],hB=x.id<y.id?raw[1]:raw[0];
+    const phi=Math.sqrt(Math.pow(x.rd/SCALE,2)+Math.pow(y.rd/SCALE,2));
+    const f=[(x.elo-y.elo)/400,g(phi)*(x.rating-y.rating)/SCALE,x.winRate-y.winRate,
+      x.form-y.form,(hA-hB)/(1+hA+hB),Math.log1p(x.played)-Math.log1p(y.played),(x.idle-y.idle)/30];
+    let z=0;for(let i=0;i<f.length;i++)z+=d.model.weights[i]*(f[i]/d.model.scale[i]);
+    return {p:1/(1+Math.exp(-z)),hA,hB};
+  };
+  const render=()=>{
+    const x=byId.get(el('#a').value),y=byId.get(el('#b').value);
+    if(!x||!y)return;
+    if(x.id===y.id){el('#out').innerHTML='<p class="mini">Выберите две разные команды.</p>';return;}
+    const {p,hA,hB}=predict(x,y);
+    const warn=[];
+    if(Math.min(x.played,y.played)<10)warn.push('Меньше 10 матчей хотя бы у одной команды: оценка нестабильна.');
+    if(Math.max(x.rd,y.rd)>250)warn.push('Высокая неопределённость рейтинга: вероятность подтянута к 50%.');
+    if(Math.max(x.idle,y.idle)>=60)warn.push('У одной из команд не было матчей больше двух месяцев к моменту снимка.');
+    el('#out').innerHTML=`<div class="prob"><b class="${p<.5?'low':''}">${pct(p)}</b><span class="muted" style="font-size:11px;letter-spacing:2px">ВЕРОЯТНОСТЬ ПОБЕДЫ</span><b class="${p>.5?'low':''}">${pct(1-p)}</b></div>
+      <div class="bar"><span style="width:${(p*100).toFixed(1)}%"></span></div>
+      <div class="side"><span>${Math.round(x.rating)} ± ${Math.round(x.rd)} · ${x.played} матчей</span><span>${Math.round(y.rating)} ± ${Math.round(y.rd)} · ${y.played} матчей</span></div>
+      <div class="side"><span>Личные встречи ${hA} : ${hB}</span><span>${pct(x.winRate)} против ${pct(y.winRate)} побед</span></div>
+      ${warn.length?`<p class="mini">${warn.map(esc).join('<br>')}</p>`:''}`;
+  };
+  el('#a').onchange=render;el('#b').onchange=render;render();
+}).catch(e=>{document.querySelector('#stats').innerHTML='<div class="card">Не удалось загрузить снимок данных: '+esc(e.message)+'</div>';});
+</script>
+</body>
+</html>

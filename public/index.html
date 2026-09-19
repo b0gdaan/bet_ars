@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Match Lab — CS2 Analytics</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script></head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#overview"><span class="brand-icon">M<span>↗</span></span><span>MATCH<span class="brand-light">LAB</span><small>COUNTER-STRIKE 2</small></span></a>
+    <div class="nav-label">ИССЛЕДОВАНИЕ</div>
+    <nav aria-label="Основная навигация">
+      <a href="#overview" data-nav="overview"><span>◫</span> Обзор</a>
+      <a href="#matches" data-nav="matches"><span>≡</span> Матчи <small id="nav-count">0</small></a>
+      <a href="#teams" data-nav="teams"><span>⬡</span> Команды</a>
+      <a href="#players" data-nav="players"><span>♙</span> Игроки</a>
+      <a href="#h2h" data-nav="h2h"><span>⇄</span> Личные встречи</a>
+      <a href="#model" data-nav="model"><span>⌁</span> Проверка модели</a>
+    </nav>
+    <div class="nav-label second-label">ДАННЫЕ</div>
+    <nav><a href="#sources" data-nav="sources"><span>⊞</span> Источники и импорт</a></nav>
+    <div class="sidebar-foot"><span class="status-dot"></span> Локальная база<small>Бесплатный исследовательский MVP<br>Данные остаются на компьютере</small></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><div><span class="muted">Workspace</span><span class="crumb">/</span><span id="breadcrumb">Обзор</span></div><label class="source-label">Выборка <select id="source" aria-label="Источник данных"><option value="bo3">BO3 · профессиональные матчи</option><option value="faceit">FACEIT · матчи игроков</option><option value="pandascore">PandaScore · результаты</option></select></label><span class="local-pill">LOCAL / v0.1</span></header>
+    <main id="main" tabindex="-1"><div class="empty">Открываем базу матчей…</div></main>
+    <footer>CS2 MATCH LAB <span>Вероятность — оценка модели. Полнота истории зависит от загруженной выборки.</span></footer>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <dialog id="detail"><button class="dialog-close" aria-label="Закрыть">×</button><div id="detail-body"></div></dialog>
+</body>
+</html>
