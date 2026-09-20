@@ -6,6 +6,7 @@
 <title>CS2 Match Lab — демонстрация</title>
 <meta name="description" content="Предматчевая модель Counter-Strike 2: Glicko-2 и логистическая регрессия на 40 тысячах профессиональных матчей.">
 <link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="rapm.css">
 <style>
 :root{color-scheme:dark;--bg:#101318;--panel:#191d24;--panel2:#1e232b;--line:#2c323b;--text:#e9ebee;--muted:#9199a7;--accent:#f09a62;--green:#89c5a4;--red:#e78c8b;--blue:#91add5;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px}
 *{box-sizing:border-box}
@@ -134,6 +135,11 @@ footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin
     <div class="tbl"><table id="recent"><thead><tr><th>Дата</th><th>Встреча</th><th>Турнир</th></tr></thead><tbody></tbody></table></div>
   </section>
 
+  <div class="eyebrow">PLAYER CONTRIBUTION / RAPM</div>
+  <h1 style="font-size:24px">Помогает ли знание пяти игроков сверх командного рейтинга</h1>
+  <p class="lead">Второй эксперимент: вероятность собирается из коэффициентов десяти игроков вместо рейтинга названия команды. Ниже — честное сравнение с командной базой на тех же матчах, вместе с интервалом неопределённости и разбором того, чьи коэффициенты вообще различимы.</p>
+  <div id="rapm-root"><p class="muted">Загружаем модель вклада игроков…</p></div>
+
   <footer>
     Ориентир из литературы: <a href="https://arxiv.org/abs/2410.02831">Skill Issues (Кембридж, 2024)</a> — 64.1% у лучшей системы на 9 929 матчах HLTV; открытый <a href="https://github.com/ppxdpp17/CS2-Predictor">CS2-Predictor</a> — 63.2% у логистической регрессии. 63–65% — нормальный потолок предматчевого прогноза по результатам серий.<br>
     Источник данных — публичный неофициальный API bo3.gg. Это исследовательский прототип, а не сервис прогнозов и не основание для ставок. <a href="https://github.com/b0gdaan/bet_ars">Исходный код</a>.
@@ -217,6 +223,10 @@ fetch('data.json').then(r=>r.json()).then(d=>{
       ${warn.length?`<p class="mini">${warn.map(esc).join('<br>')}</p>`:''}`;
   };
   el('#a').onchange=render;el('#b').onchange=render;render();
+
+  import('./rapm.js')
+    .then(({renderRapm})=>renderRapm(el('#rapm-root'),d.rapm))
+    .catch(err=>{el('#rapm-root').innerHTML='<div class="card">Раздел вклада игроков не загрузился: '+esc(err.message)+'</div>';});
 }).catch(e=>{document.querySelector('#stats').innerHTML='<div class="card">Не удалось загрузить снимок данных: '+esc(e.message)+'</div>';});
 </script>
 </body>

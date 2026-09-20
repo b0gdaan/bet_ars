@@ -25,7 +25,8 @@ export function bo3Players(data,match,short=false) {
     const kast=num(p.kast);
     return {id:`bo3:${pid}`,name:player?.nickname||profile?.nickname||String(pid),teamId:`bo3:${tid}`,steamId:profile?.steam_id_64?String(profile.steam_id_64):null,
       kills:num(short?p.kills_sum:p.kills),deaths:num(short?p.deaths_sum:p.death),assists:num(short?p.assists_sum:p.assists),adr:short?(num(p.adr_sum)!==null && num(p.games_count)>0?Number(p.adr_sum)/Number(p.games_count):null):num(p.adr),
-      kast:kast===null?null:(kast<=1?kast*100:kast),rating:short?null:num(p.player_rating),ratingSystem:short?null:'BO3',headshots:num(short?p.headshots_sum:p.headshots),firstKills:num(p.first_kills),firstDeaths:num(p.first_death)};
+      kast:kast===null?null:(kast<=1?kast*100:kast),rating:short?null:num(p.player_rating),ratingSystem:short?null:'BO3',headshots:num(short?p.headshots_sum:p.headshots),firstKills:num(p.first_kills),firstDeaths:num(p.first_death),
+      tradeKills:num(p.trade_kills),tradedDeaths:num(p.trade_death),flashAssists:num(short?p.flash_assists_sum:p.flash_assists),clutchWins:num(p.clutches),damage:num(p.damage),utilityDamage:num(p.utility_damage),moneySpent:num(p.money_spent),moneySaved:num(p.money_save),statsLevel:'match'};
   }).filter(Boolean);
 }
 

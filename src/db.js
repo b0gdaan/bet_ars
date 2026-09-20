@@ -12,6 +12,8 @@ export class Store {
       CREATE INDEX IF NOT EXISTS matches_source_start ON matches(source,start);
       CREATE TABLE IF NOT EXISTS cache (url TEXT PRIMARY KEY, fetched INTEGER NOT NULL, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS runs (id INTEGER PRIMARY KEY, source TEXT, started TEXT, ended TEXT, status TEXT, summary TEXT);
+      CREATE TABLE IF NOT EXISTS round_features (id TEXT PRIMARY KEY, source TEXT NOT NULL, match_id TEXT NOT NULL, data TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS rounds_source ON round_features(source);
     `);
   }
   put(m) {
@@ -40,5 +42,6 @@ export class Store {
   endRun(id,status,summary) { this.db.prepare('UPDATE runs SET ended=?,status=?,summary=? WHERE id=?').run(new Date().toISOString(),status,JSON.stringify(summary),id); }
   runs() { return this.db.prepare('SELECT * FROM runs ORDER BY id DESC LIMIT 15').all().map(x=>({...x,summary:x.summary?JSON.parse(x.summary):null})); }
   counts() { return Object.fromEntries(this.db.prepare('SELECT source,COUNT(*) AS count FROM matches GROUP BY source').all().map(r=>[r.source,r.count])); }
+  rounds(source) { return this.db.prepare('SELECT data FROM round_features WHERE source=? ORDER BY id').all(source).map(r=>JSON.parse(r.data)); }
   close() { this.db.close(); }
 }

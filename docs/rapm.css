@@ -1,0 +1,59 @@
+/* Styles for the shared RAPM view. Relies only on the palette variables that
+   both the local application and the static snapshot define on :root. */
+.r-root{display:flex;flex-direction:column;gap:18px}
+.r-intro p{margin:0 0 6px;max-width:80ch}
+.r-panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.r-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--panel2,#1e232b)}
+.r-head h3{margin:0;font-size:16px;letter-spacing:-.3px}
+.r-body{padding:16px 18px}
+.r-body>h4{margin:20px 0 8px;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.r-split>div>h4{margin:0 0 8px;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.r-tag{border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;letter-spacing:1.4px;color:var(--muted);white-space:nowrap}
+.r-tag.good{color:var(--green);border-color:#35564a}
+.r-tag.bad{color:var(--red);border-color:#5e3b3b}
+.r-tag.warn{color:var(--accent);border-color:#5b4330}
+.r-cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:16px}
+.r-card{background:var(--panel2,#1e232b);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.r-card span{color:var(--muted);font-size:12px}
+.r-card b{display:block;font-size:22px;letter-spacing:-.8px;margin:4px 0 2px}
+.r-card small{color:var(--muted);font-size:11px;line-height:1.4;display:block}
+.r-verdict{border-left:3px solid var(--muted);padding:8px 0 8px 12px;margin:4px 0 16px}
+.r-verdict.good{border-color:var(--green)}
+.r-verdict.bad{border-color:var(--red)}
+.r-verdict.warn{border-color:var(--accent)}
+.r-scroll{width:100%;overflow-x:auto}
+.r-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.r-table th{text-align:left;font-size:11px;letter-spacing:1.1px;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.r-table td{padding:9px 12px;border-bottom:1px solid #232830;white-space:nowrap}
+.r-table tbody tr:last-child td{border-bottom:0}
+.r-table .r-num,.r-table th.r-num{text-align:right}
+.r-table tr.r-main td{background:#1f242c}
+.r-table tr.r-main td:first-child{color:var(--accent);font-weight:700}
+.r-table.r-compact td{padding:7px 12px}
+.r-muted{color:var(--muted)}
+.good{color:var(--green)}
+.bad{color:var(--red)}
+.r-thin{color:var(--accent)}
+.r-note{color:var(--muted);font-size:12px;line-height:1.55;margin:10px 0 0;max-width:90ch}
+.r-warn{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:16px;font-size:13px;color:var(--muted)}
+.r-warn strong{color:var(--text)}
+.r-split{display:grid;gap:20px;grid-template-columns:1.15fr 1fr;align-items:start;margin-top:18px}
+.r-cal{width:100%;height:auto}
+.r-cal text{fill:var(--muted);font-size:11px}
+.r-search{background:var(--panel2,#1e232b);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px 12px;max-width:280px;width:100%;margin-bottom:10px}
+.r-limits{margin-top:16px;color:var(--muted);font-size:12px}
+.r-limits summary{cursor:pointer;color:var(--text)}
+.r-limits ul{margin:8px 0 0;padding-left:18px}
+.r-limits li{margin-bottom:5px}
+.r-picker{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+.r-picker select{background:var(--panel2,#1e232b);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:10px 12px;width:100%}
+.r-picker span{color:var(--muted);font-size:12px}
+.r-prob{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:18px}
+.r-prob b{font-size:30px;letter-spacing:-1.3px}
+.r-prob span{color:var(--muted);font-size:11px;letter-spacing:2px}
+.r-bar{height:9px;border-radius:99px;background:#2b313a;overflow:hidden;margin-top:8px}
+.r-bar span{display:block;height:100%;background:var(--accent)}
+.r-side{display:flex;justify-content:space-between;gap:16px;margin-top:9px;color:var(--muted);font-size:12px}
+.r-side span{max-width:48%}
+@media(max-width:860px){.r-split{grid-template-columns:1fr}}
+@media(max-width:520px){.r-picker{grid-template-columns:1fr}.r-picker span{text-align:center}.r-prob span{display:none}}

@@ -1,16 +1,19 @@
 // Builds the static GitHub Pages snapshot in docs/ from the local database.
 // The page has no server: it carries the fitted weights and the per-team state
 // as of the snapshot moment, and recomputes the same probability in the browser.
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync,copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { root } from './config.js';
 import { Store } from './db.js';
 import { walkForward, predictMatchup, FEATURES } from './model.js';
 import { backtest, teamRows, playerRows, summary } from './analytics.js';
+import { buildRapm } from './rapm.js';
+import { predictLineups } from './lineups.js';
 
 const TEAM_LIMIT=400;
 const store=new Store();
 const matches=store.all('bo3');
+const rounds=store.rounds('bo3');
 store.close();
 if(!matches.length)throw new Error('Пустая база: сначала загрузите историю.');
 
@@ -48,6 +51,16 @@ const snapshot={
   topPlayers:players.slice(0,15).map(p=>({name:p.name,played:p.played,winRate:p.winRate,kd:p.kd,adr:p.adr,kast:p.kast})),
   days:s.days.slice(-120),
 };
+const rapm=buildRapm(matches,rounds,new Date(now).toISOString());
+// Public snapshot: derived coefficients and observed lineups only, no API cache or secrets.
+// Roster changes are trimmed to what the page shows; changeCount keeps the true total.
+snapshot.rapm={...rapm,changes:rapm.changes.slice(0,60)};
+for(const fit of [rapm.series,rapm.round])if(fit.status==='trained'){
+  const known=new Set(fit.players.map(p=>p.id)),team=rapm.rosters.find(t=>t.players.every(id=>known.has(id)));
+  const opponent=team&&rapm.rosters.find(t=>t.id!==team.id&&t.players.every(id=>known.has(id)&&!team.players.includes(id)));
+  if(team&&opponent){const params={sideA:'CT',equipmentA:20000,equipmentB:20000};const a=predictLineups(fit,team.players,opponent.players,params).p,b=predictLineups(fit,opponent.players,team.players,{...params,sideA:'T'}).p;
+    if(Math.abs(a+b-1)>1e-10)throw new Error('RAPM: нарушена симметрия составов');}
+}
 
 // Sanity check: the exported numbers must reproduce the server's own probability.
 const [a,b]=top;
@@ -71,4 +84,6 @@ console.log(`Тест модели: ${report.metrics.count} матчей, accura
 const dir=join(root,'docs');
 mkdirSync(dir,{recursive:true});
 writeFileSync(join(dir,'data.json'),JSON.stringify(snapshot));
+copyFileSync(join(root,'src','lineups.js'),join(dir,'lineups.js'));
+for(const file of ['rapm.js','rapm.css'])copyFileSync(join(root,'public',file),join(dir,file));
 console.log(`Снимок записан: docs/data.json, команд ${snapshot.teams.length}, пар ${Object.keys(h2h).length}`);

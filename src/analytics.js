@@ -1,4 +1,5 @@
 import { walkForward, predictMatchup, score, DEFAULTS, FEATURES, mean } from './model.js';
+import { createHash } from 'node:crypto';
 
 const ENGINES=['winrate','elo','eloPlus','glicko','logistic','stacked'];
 const LABELS={winrate:'Доля побед (наивная база)',elo:`Elo K=${DEFAULTS.k}`,eloPlus:'Elo + margin of victory',glicko:'Glicko-2',logistic:'Логистическая регрессия',stacked:'Регрессия + рейтинги'};
@@ -7,7 +8,10 @@ const PRODUCTION='logistic';
 // One walk-forward pass per loaded sample, reused by every endpoint.
 let cache={key:null,model:null};
 export function model(matches) {
-  const key=`${matches.length}:${matches[0]?.id}:${matches.at(-1)?.id}:${matches.at(-1)?.winner}`;
+  // Historical corrections and newly collected rosters must invalidate the fit too.
+  const hash=createHash('sha256');
+  for(const m of matches)hash.update(JSON.stringify([m.id,m.source,m.kind,m.start,m.end,m.winner,m.scoreA,m.scoreB,m.teamA,m.teamB,m.players.map(p=>[p.id,p.teamId])]));
+  const key=hash.digest('hex');
   if(cache.key!==key)cache={key,model:walkForward(matches)};
   return cache.model;
 }
@@ -18,16 +22,16 @@ export function backtest(matches) {
   const bins=Array.from({length:10},(_,i)=>({from:i/10,to:(i+1)/10,items:[]}));
   for(const r of rows)bins[Math.min(9,Math.floor(r.probs[PRODUCTION]*10))].items.push(r);
   const table=ENGINES.map(name=>({name,label:LABELS[name],production:name===PRODUCTION,...(score(rows,name)||{})}));
-  const coin=rows.length?{count:rows.length,accuracy:0.5,logLoss:Math.log(2),brier:0.25}:null;
+  const coin=rows.length?{count:rows.length,accuracy:0.5,logLoss:Math.log(2),brier:0.25,auc:rows.some(r=>r.y===1)&&rows.some(r=>r.y===0)?0.5:null}:null;
   return {
-    total:m.rows.length,warmup:m.train.length,testFrom:m.boundary,
+    total:m.rows.length,warmup:m.train.length,testFrom:m.boundary,purgedLabels:m.rows.length-m.excluded-m.train.length-m.test.length,
     models:table,metrics:score(rows,PRODUCTION),baseline:coin,
     experienced:score(rows.filter(r=>r.experience>=10),PRODUCTION),
     cold:rows.filter(r=>r.experience<5).length,excluded:m.excluded,
     weights:FEATURES.map((name,i)=>({name,weight:m.blend.weights[i]})),
     calibration:bins.map(({from,to,items})=>({from,to,count:items.length,predicted:mean(items.map(i=>i.probs[PRODUCTION])),actual:mean(items.map(i=>i.y))})),
-    estimatedEnds:matches.filter(x=>!x.end).length,
-    note:'Walk-forward: первые 80% истории — разогрев и обучение регрессии, последние 20% — оценка. Рейтинги обновляются только после окончания матча, веса регрессии подобраны без тестовой выборки. Ничья вероятностей 50/50 даёт 0.5 в accuracy.'};
+    estimatedEnds:matches.filter(x=>!Number.isFinite(Date.parse(x.end))||Date.parse(x.end)<=Date.parse(x.start)).length,
+    note:'Walk-forward: первые 80% истории — разогрев и обучение регрессии, последние 20% — оценка. Рейтинги обновляются после окончания матча. Из обучения исключены исходы, ещё недоступные к первому прогнозу теста. Веса регрессии подобраны без тестовой выборки. Ничья вероятностей 50/50 даёт 0.5 в accuracy.'};
 }
 
 export function teamRows(matches) {

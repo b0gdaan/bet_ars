@@ -159,7 +159,7 @@ export function walkForward(matches,{split=0.8,k=DEFAULTS.k,plus=DEFAULTS.plus,g
   const ctx={engines,teams,book,h2h};
   const pending=[],rows=[];
   const apply=p=>{
-    const {m,y,now,idsA,idsB}=p;
+    const {m,y,available:now,idsA,idsB}=p;
     for(const e of Object.values(engines))e.update(idsA,idsB,y,now,m);
     for(const [id,result] of [[m.teamA.id,y],[m.teamB.id,1-y]]){
       const s=book(id);s.played++;s.wins+=result;s.recent.push(result);s.recent=s.recent.slice(-10);s.last=now;
@@ -176,7 +176,7 @@ export function walkForward(matches,{split=0.8,k=DEFAULTS.k,plus=DEFAULTS.plus,g
     const features=featureRow(ctx,A,B,idsA,idsB,now);
     const probs=Object.fromEntries(Object.entries(engines).map(([name,e])=>[name,e.p(idsA,idsB,now)]));
     const y=m.winner===A?1:0;
-    rows.push({id:m.id,start:m.start,y,features,probs,eligible,
+    rows.push({id:m.id,start:m.start,available:Date.parse(finalTime(m)),y,features,probs,eligible,
       experience:Math.min(teams.get(A).played,teams.get(B).played),
       teamA:m.teamA.name,teamB:m.teamB.name,event:m.event});
     // An incomplete FACEIT roster cannot be credited to individual players.
@@ -186,7 +186,8 @@ export function walkForward(matches,{split=0.8,k=DEFAULTS.k,plus=DEFAULTS.plus,g
   while(pending.length)apply(pending.shift());
   const usable=rows.filter(r=>r.eligible);
   const boundary=usable[Math.floor(usable.length*split)]?.start||null;
-  const train=boundary?usable.filter(r=>r.start<boundary):usable;
+  // Purge training labels that were not yet available at the first test prediction.
+  const train=boundary?usable.filter(r=>r.start<boundary&&r.available<Date.parse(boundary)):usable;
   const test=boundary?usable.filter(r=>r.start>=boundary):[];
   const blend=fitLogistic(train.map(r=>r.features),train.map(r=>r.y));
   const stackRow=r=>[...r.features,logit(r.probs.glicko),logit(r.probs.eloPlus)];
@@ -210,5 +211,17 @@ export function score(rows,name) {
     accuracy:mean(rows.map((r,i)=>ps[i]===0.5?0.5:Number((ps[i]>0.5)===(r.y===1)))),
     logLoss:mean(rows.map((r,i)=>-(r.y*Math.log(ps[i])+(1-r.y)*Math.log(1-ps[i])))),
     brier:mean(rows.map((r,i)=>(ps[i]-r.y)**2)),
+    auc:rocAuc(rows.map(r=>r.y),ps),
   };
+}
+
+// Mann-Whitney rank statistic with average ranks for ties; undefined for one class.
+export function rocAuc(labels,probabilities) {
+  const rows=labels.map((y,i)=>({y,p:probabilities[i]})).sort((a,b)=>a.p-b.p);
+  const positives=labels.filter(y=>y===1).length,negatives=labels.length-positives;
+  if(!positives||!negatives)return null;
+  let sum=0;
+  for(let i=0;i<rows.length;){let j=i+1;while(j<rows.length&&rows[j].p===rows[i].p)j++;
+    const rank=(i+1+j)/2;for(let k=i;k<j;k++)if(rows[k].y===1)sum+=rank;i=j;}
+  return (sum-positives*(positives+1)/2)/(positives*negatives);
 }
