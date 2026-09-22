@@ -103,8 +103,12 @@ function predictorBlock(rapm,fit) {
   return `<div class="r-panel"><div class="r-head"><h3>Прогноз по составам</h3><span class="r-tag">${MODES[fit.mode]}</span></div>
     <div class="r-body">
       <div class="r-picker"><select id="rapm-a" aria-label="Состав A">${options}</select><span>VS</span><select id="rapm-b" aria-label="Состав B">${options}</select></div>
+      <details><summary>Проверить замену игрока</summary><div class="r-picker">
+        <select id="rapm-slot" aria-label="Кого заменить"></select><span>→</span>
+        <select id="rapm-in" aria-label="Кто войдёт в состав"><option value="">Без замены</option>${[...fit.players].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · ${p.matches} матчей</option>`).join('')}</select>
+      </div><p class="r-note">Сценарий одной замены в любой команде. Показывается изменение прогноза относительно исходных пятёрок; это не причинная оценка трансфера.</p></details>
       <div id="rapm-out"></div>
-      <p class="r-note">Берётся последняя наблюдавшаяся пятёрка команды. Для неизвестного игрока вероятность не считается: подставлять ему средний коэффициент нельзя. Это оценка на исторических составах, а не прогноз на анонсированный матч.</p>
+      <p class="r-note">По умолчанию берётся последняя наблюдавшаяся пятёрка команды. Можно проверить сценарий замены выше. Для неизвестного игрока вероятность не считается. Это оценка по истории, а не подтверждённый состав анонсированного матча.</p>
     </div></div>`;
 }
 
@@ -141,21 +145,26 @@ export function renderRapm(container,rapm) {
   const a=container.querySelector('#rapm-a'),b=container.querySelector('#rapm-b'),out=container.querySelector('#rapm-out');
   if(!a||!b)return;
   const byId=new Map(rapm.rosters.map(t=>[t.id,t]));
+  const slot=container.querySelector('#rapm-slot'),incoming=container.querySelector('#rapm-in');
+  const names=new Map(trained.players.map(p=>[p.id,p.name]));
   if(b.options.length>1)b.selectedIndex=1;
   const show=()=>{
-    const x=byId.get(a.value),y=byId.get(b.value);
+    const baseA=byId.get(a.value),baseB=byId.get(b.value);
+    const x=baseA&&{...baseA,players:[...baseA.players]},y=baseB&&{...baseB,players:[...baseB.players]};
     if(!x||!y)return;
     if(x.id===y.id){out.innerHTML='<p class="r-note">Выберите две разные команды.</p>';return;}
     try {
       const params={sideA:'CT',equipmentA:20000,equipmentB:20000};
+      const before=predictLineups(trained,x.players,y.players,params).p;
+      if(incoming.value){const [side,index]=slot.value.split(':');(side==='A'?x:y).players[Number(index)]=incoming.value;}
       const forward=predictLineups(trained,x.players,y.players,params);
-      const back=predictLineups(trained,y.players,x.players,params);
-      const names=new Map(trained.players.map(p=>[p.id,p.name]));
+      const back=predictLineups(trained,y.players,x.players,{...params,sideA:'T'});
       const roster=t=>t.players.map(id=>esc(names.get(id)||id)).join(', ');
       const diff=lineupChange(y.players,x.players);
       out.innerHTML=`<div class="r-prob"><b>${pct(forward.p)}</b><span>ВЕРОЯТНОСТЬ ПОБЕДЫ</span><b>${pct(1-forward.p)}</b></div>
         <div class="r-bar"><span style="width:${(forward.p*100).toFixed(1)}%"></span></div>
         <div class="r-side"><span>${roster(x)}</span><span>${roster(y)}</span></div>
+        ${incoming.value?`<p class="r-note">До замены: ${pct(before)} для A. Изменение: ${signed((forward.p-before)*100,2)} п.п.</p>`:''}
         <p class="r-note">Логит ${dec(forward.logit,3)}. Обратная постановка даёт ${pct(back.p)}, сумма ${dec(forward.p+back.p,6)} — симметрия сторон точная. Общих игроков у составов: ${5-diff.in.length}.</p>
         ${forward.lowSample.length?`<p class="r-note r-thin">Игроков с менее чем 10 матчами: ${forward.lowSample.length} — коэффициент сильно стянут к нулю.</p>`:''}
         ${forward.confounded.length?`<p class="r-note r-thin">Игроков, неотличимых от партнёров: ${forward.confounded.length} — их личный вклад по этим данным не выделяется.</p>`:''}`;
@@ -163,7 +172,8 @@ export function renderRapm(container,rapm) {
       out.innerHTML=`<p class="r-note bad">${esc(e.message)}</p>`;
     }
   };
-  a.onchange=show;b.onchange=show;show();
+  const reset=()=>{incoming.value='';slot.innerHTML=[['A',byId.get(a.value)],['B',byId.get(b.value)]].flatMap(([side,t])=>t.players.map((id,i)=>`<option value="${side}:${i}">${side}: ${esc(names.get(id)||id)}</option>`)).join('');show();};
+  a.onchange=reset;b.onchange=reset;slot.onchange=show;incoming.onchange=show;reset();
 }
 
 // Adapter for the local application: fetches the live model and renders it.

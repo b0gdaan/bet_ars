@@ -151,7 +151,8 @@ export function featureRow(ctx,A,B,idsA,idsB,now) {
 
 // Walk-forward comparison of several engines on one real history.
 // Warmup fits the logistic blend; the held-out tail is never seen while fitting.
-export function walkForward(matches,{split=0.8,k=DEFAULTS.k,plus=DEFAULTS.plus,glicko=DEFAULTS.glicko}={}) {
+export function walkForward(matches,{split=0.8,k=DEFAULTS.k,plus=DEFAULTS.plus,glicko=DEFAULTS.glicko,forecastLeadMs=0}={}) {
+  if(!Number.isFinite(forecastLeadMs)||forecastLeadMs<0)throw new Error('Некорректный forecastLeadMs');
   const sorted=[...matches].sort((a,b)=>a.start.localeCompare(b.start)||a.id.localeCompare(b.id));
   const engines={winrate:new WinRate(),elo:new Elo({k}),eloPlus:new Elo(plus),glicko:new Glicko2(glicko)};
   const teams=new Map(),h2h=new Map();
@@ -168,7 +169,7 @@ export function walkForward(matches,{split=0.8,k=DEFAULTS.k,plus=DEFAULTS.plus,g
     h[m.teamA.id<m.teamB.id?(y?0:1):(y?1:0)]++;h2h.set(key,h);
   };
   for(const m of sorted) {
-    const now=Date.parse(m.start);
+    const now=Date.parse(m.start)-forecastLeadMs-1;
     pending.sort((a,b)=>a.available-b.available);
     while(pending.length&&pending[0].available<now)apply(pending.shift());
     const A=m.teamA.id,B=m.teamB.id,{a:idsA,b:idsB,eligible}=sides(m);
@@ -176,7 +177,7 @@ export function walkForward(matches,{split=0.8,k=DEFAULTS.k,plus=DEFAULTS.plus,g
     const features=featureRow(ctx,A,B,idsA,idsB,now);
     const probs=Object.fromEntries(Object.entries(engines).map(([name,e])=>[name,e.p(idsA,idsB,now)]));
     const y=m.winner===A?1:0;
-    rows.push({id:m.id,start:m.start,available:Date.parse(finalTime(m)),y,features,probs,eligible,
+    rows.push({id:m.id,start:m.start,predictedAt:new Date(now).toISOString(),available:Date.parse(finalTime(m)),y,features,probs,eligible,
       experience:Math.min(teams.get(A).played,teams.get(B).played),
       teamA:m.teamA.name,teamB:m.teamB.name,event:m.event});
     // An incomplete FACEIT roster cannot be credited to individual players.
@@ -187,7 +188,7 @@ export function walkForward(matches,{split=0.8,k=DEFAULTS.k,plus=DEFAULTS.plus,g
   const usable=rows.filter(r=>r.eligible);
   const boundary=usable[Math.floor(usable.length*split)]?.start||null;
   // Purge training labels that were not yet available at the first test prediction.
-  const train=boundary?usable.filter(r=>r.start<boundary&&r.available<Date.parse(boundary)):usable;
+  const train=boundary?usable.filter(r=>r.start<boundary&&r.available<Date.parse(boundary)-forecastLeadMs-1):usable;
   const test=boundary?usable.filter(r=>r.start>=boundary):[];
   const blend=fitLogistic(train.map(r=>r.features),train.map(r=>r.y));
   const stackRow=r=>[...r.features,logit(r.probs.glicko),logit(r.probs.eloPlus)];

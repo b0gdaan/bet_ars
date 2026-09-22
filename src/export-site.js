@@ -9,11 +9,15 @@ import { walkForward, predictMatchup, FEATURES } from './model.js';
 import { backtest, teamRows, playerRows, summary } from './analytics.js';
 import { buildRapm } from './rapm.js';
 import { predictLineups } from './lineups.js';
+import { buildMaps } from './maps.js';
+import { bettingReport } from './odds/backtest.js';
+import { allOdds } from './odds/store.js';
 
 const TEAM_LIMIT=400;
 const store=new Store();
 const matches=store.all('bo3');
 const rounds=store.rounds('bo3');
+const odds=allOdds(store);
 store.close();
 if(!matches.length)throw new Error('Пустая база: сначала загрузите историю.');
 
@@ -55,6 +59,10 @@ const rapm=buildRapm(matches,rounds,new Date(now).toISOString());
 // Public snapshot: derived coefficients and observed lineups only, no API cache or secrets.
 // Roster changes are trimmed to what the page shows; changeCount keeps the true total.
 snapshot.rapm={...rapm,changes:rapm.changes.slice(0,60)};
+const maps=buildMaps(matches);
+// The map picker offers the 400 most active teams; the full list stays in the local app.
+snapshot.marketLab={betting:bettingReport(matches,odds),maps:{...maps,teams:maps.teams.slice(0,400)}};
+{const r=snapshot.marketLab.maps.report;console.log(`Карты: тест ${r.withMaps?.count} карт, Δ Brier ${r.deltaBrier?.toFixed(4)}, 95% ${r.deltaBrier95?.low.toFixed(4)} … ${r.deltaBrier95?.high.toFixed(4)}`);}
 for(const fit of [rapm.series,rapm.round])if(fit.status==='trained'){
   const known=new Set(fit.players.map(p=>p.id)),team=rapm.rosters.find(t=>t.players.every(id=>known.has(id)));
   const opponent=team&&rapm.rosters.find(t=>t.id!==team.id&&t.players.every(id=>known.has(id)&&!team.players.includes(id)));
@@ -85,5 +93,7 @@ const dir=join(root,'docs');
 mkdirSync(dir,{recursive:true});
 writeFileSync(join(dir,'data.json'),JSON.stringify(snapshot));
 copyFileSync(join(root,'src','lineups.js'),join(dir,'lineups.js'));
-for(const file of ['rapm.js','rapm.css'])copyFileSync(join(root,'public',file),join(dir,file));
+for(const file of ['rapm.js','rapm.css','market-lab.js'])copyFileSync(join(root,'public',file),join(dir,file));
+copyFileSync(join(root,'src','map-contract.js'),join(dir,'map-contract.js'));
+copyFileSync(join(root,'src','odds','market.js'),join(dir,'odds-market.js'));
 console.log(`Снимок записан: docs/data.json, команд ${snapshot.teams.length}, пар ${Object.keys(h2h).length}`);

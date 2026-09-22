@@ -120,7 +120,7 @@ footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin
         <li>Матч, идущий параллельно, не влияет на прогноз соседнего.</li>
         <li>Первые 80% истории — разогрев и обучение весов, последние 20% — оценка.</li>
         <li>Параметры выбраны на отдельном окне внутри разогрева; тестовая выборка при подборе не использовалась.</li>
-        <li>Винрейты по картам сознательно не входят в признаки: veto происходит перед матчем и протекает в прогноз.</li>
+        <li>Модель серии не использует будущий veto. История конкретной карты проверяется ниже в отдельном эксперименте, условном на известную карту.</li>
       </ol></div>
     </section>
     <section class="panel">
@@ -134,6 +134,10 @@ footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin
     <div class="panel-head"><h2>Последние матчи в снимке</h2><span class="tag">BO3</span></div>
     <div class="tbl"><table id="recent"><thead><tr><th>Дата</th><th>Встреча</th><th>Турнир</th></tr></thead><tbody></tbody></table></div>
   </section>
+
+  <section id="market"><div class="eyebrow">MARKET / MAP RESEARCH</div>
+  <h1 style="font-size:24px">Можно ли оценивать вероятность точнее рынка</h1>
+  <div id="market-root"><p class="muted">Загружаем проверку рынка и карт…</p></div></section>
 
   <div class="eyebrow">PLAYER CONTRIBUTION / RAPM</div>
   <h1 style="font-size:24px">Помогает ли знание пяти игроков сверх командного рейтинга</h1>
@@ -224,6 +228,9 @@ fetch('data.json').then(r=>r.json()).then(d=>{
   };
   el('#a').onchange=render;el('#b').onchange=render;render();
 
+  import('./market-lab.js')
+    .then(({renderMarketLab})=>renderMarketLab(el('#market-root'),d.marketLab))
+    .catch(err=>{el('#market-root').textContent='Раздел рынка не загрузился: '+err.message;});
   import('./rapm.js')
     .then(({renderRapm})=>renderRapm(el('#rapm-root'),d.rapm))
     .catch(err=>{el('#rapm-root').innerHTML='<div class="card">Раздел вклада игроков не загрузился: '+esc(err.message)+'</div>';});

@@ -10,6 +10,9 @@ import { summary, teamRows, playerRows, headToHead, predict, backtest } from './
 import { dataAudit,scouting } from './research.js';
 import { loadRoles } from './features.js';
 import { buildRapm } from './rapm.js';
+import { buildMaps } from './maps.js';
+import { bettingReport } from './odds/backtest.js';
+import { allOdds } from './odds/store.js';
 
 const sources=new Set(['bo3','faceit','pandascore']);
 const csvCell=v=>{let s=v===null||v===undefined?'':String(v);if(/^[=+\-@\t\r]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';};
@@ -41,6 +44,7 @@ export function createApp(store=new Store()) {
         if(req.method!=='GET')return json(res,{error:'Метод не поддерживается'},405);
         if(url.pathname==='/api/status')return json(res,{csrf,job,counts:store.counts(),runs:store.runs(),keys:{faceit:!!process.env.FACEIT_API_KEY,pandascore:!!process.env.PANDASCORE_API_KEY}});
         const matches=store.all(source);
+        if(url.pathname==='/api/market-lab')return json(res,{betting:bettingReport(matches,source==='bo3'?allOdds(store):[]),maps:buildMaps(matches)});
         if(url.pathname==='/api/rapm')return json(res,buildRapm(matches,store.rounds(source)));
         const scoutingOptions=()=>({roles:loadRoles(),...(url.searchParams.has('asOf')?{asOf:url.searchParams.get('asOf')}:{}),...(url.searchParams.has('days')?{days:Number(url.searchParams.get('days'))}:{}),...(url.searchParams.has('minMatches')?{minMatches:Number(url.searchParams.get('minMatches'))}:{})});
         if(url.pathname==='/api/research')return json(res,dataAudit(matches,store.rounds(source)));
@@ -72,7 +76,10 @@ export function createApp(store=new Store()) {
       // The lineup contract is served from src: one file, shared by Node and the browser.
       const assets={'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/style.css':['style.css','text/css; charset=utf-8'],'/favicon.svg':['favicon.svg','image/svg+xml'],
         '/research.js':['research.js','text/javascript; charset=utf-8'],'/rapm.js':['rapm.js','text/javascript; charset=utf-8'],
-        '/rapm.css':['rapm.css','text/css; charset=utf-8'],'/lineups.js':['lineups.js','text/javascript; charset=utf-8','src']};
+        '/rapm.css':['rapm.css','text/css; charset=utf-8'],'/lineups.js':['lineups.js','text/javascript; charset=utf-8','src'],
+        '/market-lab.js':['market-lab.js','text/javascript; charset=utf-8'],
+        '/map-contract.js':['map-contract.js','text/javascript; charset=utf-8','src'],
+        '/odds-market.js':['odds/market.js','text/javascript; charset=utf-8','src']};
       const file=assets[url.pathname];if(!file){res.writeHead(404);return res.end('Not found');}
       const content=await readFile(join(root,file[2]||'public',file[0]));res.writeHead(200,{'Content-Type':file[1],'Cache-Control':'no-cache'});res.end(content);
     }catch(e){json(res,{error:e.message},400);}

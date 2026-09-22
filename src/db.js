@@ -14,6 +14,10 @@ export class Store {
       CREATE TABLE IF NOT EXISTS runs (id INTEGER PRIMARY KEY, source TEXT, started TEXT, ended TEXT, status TEXT, summary TEXT);
       CREATE TABLE IF NOT EXISTS round_features (id TEXT PRIMARY KEY, source TEXT NOT NULL, match_id TEXT NOT NULL, data TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS rounds_source ON round_features(source);
+      CREATE TABLE IF NOT EXISTS odds (id INTEGER PRIMARY KEY, provider TEXT NOT NULL, external_match_id TEXT NOT NULL, bookmaker TEXT NOT NULL, captured_at TEXT NOT NULL, starts_at TEXT NOT NULL, market_type TEXT NOT NULL, match_id TEXT, data TEXT NOT NULL, UNIQUE(provider,external_match_id,bookmaker,captured_at,market_type));
+      CREATE INDEX IF NOT EXISTS odds_match_time ON odds(match_id,bookmaker,captured_at);
+      CREATE INDEX IF NOT EXISTS odds_event ON odds(provider,external_match_id);
+      CREATE INDEX IF NOT EXISTS odds_start ON odds(starts_at);
     `);
   }
   put(m) {
