@@ -46,7 +46,7 @@ export class OddsPapiProvider {
   }
   async collect({from,to,bookmaker='pinnacle',limit=5},onRows){
     const start=Date.parse(from),end=Date.parse(to);
-    if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||end-start>=10*86400000||start<Date.parse('2026-01-01')||!Number.isInteger(limit)||limit<1||limit>100||!/^[-a-z0-9]+$/.test(bookmaker))throw new Error('Нужен период от 2026 года короче 10 дней, limit 1–100 и один bookmaker slug');
+    if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||end-start>=10*86400000||start<Date.parse('2026-01-01')||!Number.isInteger(limit)||limit<1||limit>100||!/^[-a-z0-9]+(,[-a-z0-9]+){0,2}$/.test(bookmaker))throw new Error('Нужен период от 2026 года короче 10 дней, limit 1–100 и от 1 до 3 bookmaker slug через запятую');
     const market=resolveMatchMarket(await this.get('markets',{language:'en'}));
     const fixtures=await this.get('fixtures',{sportId:17,from:new Date(start).toISOString(),to:new Date(end).toISOString(),statusId:2});
     if(!Array.isArray(fixtures))throw new Error('Неожиданный формат списка fixtures');

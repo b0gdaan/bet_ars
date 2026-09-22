@@ -1,8 +1,12 @@
 const valid=x=>typeof x==='number'&&Number.isFinite(x);
+// a/b split the margin proportionally. shinA/shinB use Shin's method, which for a two-way
+// market reduces to removing an equal share of the margin from each side (the additive
+// method) and corrects the favourite-longshot bias (Štrumbelj 2014, IJF 30(4)).
 export function marketProbabilities(a,b){
   if(!valid(a)||!valid(b)||a<=1||b<=1)throw new Error('Десятичные коэффициенты должны быть >1');
-  const rawA=1/a,rawB=1/b,overround=rawA+rawB;
-  return {rawA,rawB,overround,margin:overround-1,a:rawA/overround,b:rawB/overround};
+  const rawA=1/a,rawB=1/b,overround=rawA+rawB,margin=overround-1;
+  const shinA=Math.min(1-1e-6,Math.max(1e-6,rawA-margin/2));
+  return {rawA,rawB,overround,margin,a:rawA/overround,b:rawB/overround,shinA,shinB:1-shinA};
 }
 export function valueAtOdds(p,odds,commission=0,fee=0){
   if(!valid(p)||p<0||p>1||!valid(odds)||odds<=1||!valid(commission)||commission<0||commission>=1||!valid(fee)||fee<0||fee>=1)throw new Error('Некорректные вероятность, коэффициент или комиссия');
