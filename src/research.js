@@ -41,8 +41,8 @@ export function dataAudit(matches,rounds=[]) {
     gates:[
       {name:'Гипотеза',status:'ready',detail:'Проверить добавочную ценность player-level признаков на будущих матчах.'},
       {name:'Данные раундов Mirage',status:demoMatches>=300&&incompleteMaps===0&&roundMissingRate!==null&&roundMissingRate<.05?'ready':'blocked',detail:`${demoMatches}/300 матчей с полными раундами Mirage; неполных карт ${incompleteMaps}; пропуски стартовой экономики ${roundMissingRate===null?'не измерены':(roundMissingRate*100).toFixed(1)+'%'}. Полнота проверяется по счёту карты. Матчевые агрегаты не заменяют раунды.`},
-      {name:'Рейтинг игроков',status:'research',detail:'Доступен описательный индекс формы. Для RAPM ещё нужны раундовые данные, модель и независимая проверка.'},
-      {name:'Сравнение с рынком',status:'blocked',detail:'Нужны closing odds с временем снимка, точным исходом и совпадающей выборкой. Без них market edge не рассчитан.'},
+      {name:'Рейтинг игроков',status:'research',detail:'Есть описательный индекс формы и RAPM по исходам серий. RAPM на текущих данных не обгоняет командную модель; раундовый вариант ждёт демок.'},
+      {name:'Сравнение с рынком',status:'blocked',detail:'Инструменты готовы: импорт котировок, консенсус букмекеров, CLV. Исторических котировок пока нет; предматчевая линия bo3.gg копится при каждом npm run update, а живая проверка сравнивает с ней прогнозы.'},
     ]};
 }
 

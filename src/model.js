@@ -36,7 +36,7 @@ export class Elo {
     let k=this.k;
     if(this.mov&&Number.isFinite(m?.scoreA)&&Number.isFinite(m?.scoreB))k*=1+0.5*Math.log(1+Math.abs(m.scoreA-m.scoreB));
     const delta=k*(y-p);
-    for(const [ids,sign] of [[a,1],[b,-1]])for(const id of ids){const s=this.at(id,now);s.elo+=sign*delta;s.played++;s.last=now;}
+    for(const [ids,sign] of [[a,1],[b,-1]])for(const id of ids){const s=this.at(id,now);s.elo+=sign*delta;s.played++;s.last=Math.max(s.last??now,now);}
   }
 }
 
@@ -90,7 +90,9 @@ export class Glicko2 {
   update(a,b,y,now){
     const sideA=this.side(a,now),sideB=this.side(b,now);
     for(const [ids,opponent,outcome] of [[a,sideB,y],[b,sideA,1-y]])
-      for(const id of ids){const s=this.at(id,now);Object.assign(s,this.step({...s},opponent,outcome),{played:s.played+1,last:now});}
+      // A result can be applied after the side was already read at a later time (overlapping
+      // matches); keep `last` monotonic so idle-time growth is never counted twice.
+      for(const id of ids){const s=this.at(id,now);Object.assign(s,this.step({...s},opponent,outcome),{played:s.played+1,last:Math.max(s.last??now,now)});}
   }
 }
 

@@ -13,12 +13,16 @@ import { buildRapm } from './rapm.js';
 import { buildMaps } from './maps.js';
 import { bettingReport } from './odds/backtest.js';
 import { allOdds } from './odds/store.js';
+import { liveEvaluation,upcomingBoard } from './upcoming.js';
 
 const sources=new Set(['bo3','faceit','pandascore']);
 const csvCell=v=>{let s=v===null||v===undefined?'':String(v);if(/^[=+\-@\t\r]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';};
 export function csv(rows) { if(!rows.length)return '';const fields=Object.keys(rows[0]);return '\ufeff'+[fields,...rows.map(r=>fields.map(f=>r[f]))].map(row=>row.map(csvCell).join(',')).join('\r\n'); }
 export function createApp(store=new Store()) {
   let job=null;
+  // Parsing every match costs ~0.3 s; reuse it until the table changes.
+  const loaded=new Map();
+  const loadMatches=source=>{const key=store.version(source),hit=loaded.get(source);if(hit?.key===key)return hit.rows;const rows=store.all(source);loaded.set(source,{key,rows});return rows;};
   const csrf=randomBytes(24).toString('hex');
   async function body(req) {let value='';for await(const c of req){value+=c;if(value.length>16000)throw new Error('Слишком большой запрос');}return JSON.parse(value||'{}');}
   function json(res,data,status=200) {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
@@ -43,7 +47,8 @@ export function createApp(store=new Store()) {
         }
         if(req.method!=='GET')return json(res,{error:'Метод не поддерживается'},405);
         if(url.pathname==='/api/status')return json(res,{csrf,job,counts:store.counts(),runs:store.runs(),keys:{faceit:!!process.env.FACEIT_API_KEY,pandascore:!!process.env.PANDASCORE_API_KEY}});
-        const matches=store.all(source);
+        const matches=loadMatches(source);
+        if(url.pathname==='/api/upcoming'){const log=store.forecasts();return json(res,source==='bo3'?{upcoming:upcomingBoard(store.upcoming('bo3'),log),live:liveEvaluation(matches,log)}:{upcoming:[],live:liveEvaluation([],[])});}
         if(url.pathname==='/api/market-lab')return json(res,{betting:bettingReport(matches,source==='bo3'?allOdds(store):[]),maps:buildMaps(matches)});
         if(url.pathname==='/api/rapm')return json(res,buildRapm(matches,store.rounds(source)));
         const scoutingOptions=()=>({roles:loadRoles(),...(url.searchParams.has('asOf')?{asOf:url.searchParams.get('asOf')}:{}),...(url.searchParams.has('days')?{days:Number(url.searchParams.get('days'))}:{}),...(url.searchParams.has('minMatches')?{minMatches:Number(url.searchParams.get('minMatches'))}:{})});
@@ -77,7 +82,7 @@ export function createApp(store=new Store()) {
       const assets={'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/style.css':['style.css','text/css; charset=utf-8'],'/favicon.svg':['favicon.svg','image/svg+xml'],
         '/research.js':['research.js','text/javascript; charset=utf-8'],'/rapm.js':['rapm.js','text/javascript; charset=utf-8'],
         '/rapm.css':['rapm.css','text/css; charset=utf-8'],'/lineups.js':['lineups.js','text/javascript; charset=utf-8','src'],
-        '/market-lab.js':['market-lab.js','text/javascript; charset=utf-8'],
+        '/market-lab.js':['market-lab.js','text/javascript; charset=utf-8'],'/upcoming.js':['upcoming-view.js','text/javascript; charset=utf-8'],
         '/map-contract.js':['map-contract.js','text/javascript; charset=utf-8','src'],
         '/odds-market.js':['odds/market.js','text/javascript; charset=utf-8','src']};
       const file=assets[url.pathname];if(!file){res.writeHead(404);return res.end('Not found');}

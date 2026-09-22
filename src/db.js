@@ -10,6 +10,7 @@ export class Store {
     this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS matches (id TEXT PRIMARY KEY, source TEXT NOT NULL, start TEXT NOT NULL, data TEXT NOT NULL, updated TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS matches_source_start ON matches(source,start);
+      CREATE INDEX IF NOT EXISTS matches_source_updated ON matches(source,updated);
       CREATE TABLE IF NOT EXISTS cache (url TEXT PRIMARY KEY, fetched INTEGER NOT NULL, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS runs (id INTEGER PRIMARY KEY, source TEXT, started TEXT, ended TEXT, status TEXT, summary TEXT);
       CREATE TABLE IF NOT EXISTS round_features (id TEXT PRIMARY KEY, source TEXT NOT NULL, match_id TEXT NOT NULL, data TEXT NOT NULL);
@@ -18,6 +19,9 @@ export class Store {
       CREATE INDEX IF NOT EXISTS odds_match_time ON odds(match_id,bookmaker,captured_at);
       CREATE INDEX IF NOT EXISTS odds_event ON odds(provider,external_match_id);
       CREATE INDEX IF NOT EXISTS odds_start ON odds(starts_at);
+      CREATE TABLE IF NOT EXISTS upcoming (match_id TEXT PRIMARY KEY, source TEXT NOT NULL, start TEXT NOT NULL, fetched_at TEXT NOT NULL, data TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS forecasts (match_id TEXT NOT NULL, made_at TEXT NOT NULL, model TEXT NOT NULL, starts_at TEXT NOT NULL, p REAL NOT NULL, data TEXT NOT NULL, PRIMARY KEY(match_id,made_at,model));
+      CREATE INDEX IF NOT EXISTS forecasts_start ON forecasts(starts_at);
     `);
   }
   put(m) {
@@ -35,6 +39,8 @@ export class Store {
       .run(m.id, m.source, m.start, JSON.stringify(m), new Date().toISOString());
     return !old;
   }
+  // Changes whenever a match is added or rewritten; lets readers reuse a parsed snapshot.
+  version(source) { const v=this.db.prepare('SELECT COUNT(*) AS c, MAX(updated) AS u FROM matches WHERE source=?').get(source); return `${v.c}|${v.u}`; }
   get(id) { const row = this.db.prepare('SELECT data FROM matches WHERE id=?').get(id); return row ? JSON.parse(row.data) : null; }
   all(source) {
     const rows = source ? this.db.prepare('SELECT data FROM matches WHERE source=? ORDER BY start,id').all(source) : this.db.prepare('SELECT data FROM matches ORDER BY start,id').all();
@@ -46,6 +52,17 @@ export class Store {
   endRun(id,status,summary) { this.db.prepare('UPDATE runs SET ended=?,status=?,summary=? WHERE id=?').run(new Date().toISOString(),status,JSON.stringify(summary),id); }
   runs() { return this.db.prepare('SELECT * FROM runs ORDER BY id DESC LIMIT 15').all().map(x=>({...x,summary:x.summary?JSON.parse(x.summary):null})); }
   counts() { return Object.fromEntries(this.db.prepare('SELECT source,COUNT(*) AS count FROM matches GROUP BY source').all().map(r=>[r.source,r.count])); }
+  // The upcoming list is a snapshot: each refresh replaces it, so cancelled matches disappear.
+  replaceUpcoming(source,rows,fetchedAt) {
+    const insert=this.db.prepare('INSERT INTO upcoming VALUES(?,?,?,?,?)');
+    this.db.exec('BEGIN IMMEDIATE');
+    try{this.db.prepare('DELETE FROM upcoming WHERE source=?').run(source);for(const m of rows)insert.run(m.id,source,m.start,fetchedAt,JSON.stringify(m));this.db.exec('COMMIT');}
+    catch(e){this.db.exec('ROLLBACK');throw e;}
+  }
+  upcoming(source) { return this.db.prepare('SELECT data FROM upcoming WHERE source=? ORDER BY start,match_id').all(source).map(r=>JSON.parse(r.data)); }
+  // Forecasts are append-only: a prediction, once logged before the match, is never rewritten.
+  addForecast(f) { return this.db.prepare('INSERT OR IGNORE INTO forecasts VALUES(?,?,?,?,?,?)').run(f.matchId,f.madeAt,f.model,f.startsAt,f.p,JSON.stringify(f)).changes>0; }
+  forecasts() { return this.db.prepare('SELECT data FROM forecasts ORDER BY made_at,match_id').all().map(r=>JSON.parse(r.data)); }
   rounds(source) { return this.db.prepare('SELECT data FROM round_features WHERE source=? ORDER BY id').all(source).map(r=>JSON.parse(r.data)); }
   close() { this.db.close(); }
 }

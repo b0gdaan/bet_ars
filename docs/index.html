@@ -80,6 +80,8 @@ footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin
 
   <div class="grid" id="stats"></div>
 
+  <div id="upcoming-root" style="margin:18px 0"><p class="muted">Загружаем ближайшие матчи…</p></div>
+
   <section class="panel">
     <div class="panel-head"><h2>Прогноз на матч</h2><span class="tag orange">GLICKO-2 + РЕГРЕССИЯ</span></div>
     <div class="panel-body">
@@ -231,6 +233,10 @@ fetch('data.json').then(r=>r.json()).then(d=>{
   import('./market-lab.js')
     .then(({renderMarketLab})=>renderMarketLab(el('#market-root'),d.marketLab))
     .catch(err=>{el('#market-root').textContent='Раздел рынка не загрузился: '+err.message;});
+  import('./upcoming-view.js')
+    .then(({renderUpcoming})=>renderUpcoming(el('#upcoming-root'),{upcoming:d.upcoming||[],live:d.live||null,generated:d.generated}))
+    .catch(err=>{el('#upcoming-root').innerHTML='<div class="card">Ближайшие матчи не загрузились: '+esc(err.message)+'</div>';});
+
   import('./rapm.js')
     .then(({renderRapm})=>renderRapm(el('#rapm-root'),d.rapm))
     .catch(err=>{el('#rapm-root').innerHTML='<div class="card">Раздел вклада игроков не загрузился: '+esc(err.message)+'</div>';});

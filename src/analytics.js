@@ -90,7 +90,7 @@ export function predict(matches,a,b) {
   }
   const warnings=[];
   if(Math.min(ta.played,tb.played)<10)warnings.push('Меньше 10 матчей хотя бы у одной команды: оценка нестабильна.');
-  if([ta,tb].some(t=>Math.max(ta.rd,tb.rd)>250))warnings.push('Высокая неопределённость рейтинга (RD): вероятность подтянута к 50%.');
+  if(Math.max(ta.rd,tb.rd)>250)warnings.push('Высокая неопределённость рейтинга (RD): вероятность подтянута к 50%.');
   if([ta,tb].some(t=>!t.last||Date.now()-Date.parse(t.last)>30*86400_000))warnings.push('У одной из команд нет свежих матчей за 30 дней.');
   warnings.push('Прогноз по рейтингам, форме, опыту, паузе и личным встречам. Составы, veto карт, формат серии и сила лиги пока не входят в модель.');
   return {a:ta,b:tb,p:detail.p,alternatives:{glicko:detail.glicko,elo:detail.elo},

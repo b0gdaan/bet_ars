@@ -164,7 +164,7 @@ export function renderRapm(container,rapm) {
       out.innerHTML=`<div class="r-prob"><b>${pct(forward.p)}</b><span>ВЕРОЯТНОСТЬ ПОБЕДЫ</span><b>${pct(1-forward.p)}</b></div>
         <div class="r-bar"><span style="width:${(forward.p*100).toFixed(1)}%"></span></div>
         <div class="r-side"><span>${roster(x)}</span><span>${roster(y)}</span></div>
-        ${incoming.value?`<p class="r-note">До замены: ${pct(before)} для A. Изменение: ${signed((forward.p-before)*100,2)} п.п.</p>`:''}
+        ${incoming.value?`<p class="r-note">До замены: ${pct(before)} для A. Изменение по модели: ${signed((forward.p-before)*100,2)} п.п. Это условная оценка через коэффициенты, а не причинный эффект замены: игрок, почти не игравший с новыми партнёрами, получает коэффициент из совсем другого контекста.</p>`:''}
         <p class="r-note">Логит ${dec(forward.logit,3)}. Обратная постановка даёт ${pct(back.p)}, сумма ${dec(forward.p+back.p,6)} — симметрия сторон точная. Общих игроков у составов: ${5-diff.in.length}.</p>
         ${forward.lowSample.length?`<p class="r-note r-thin">Игроков с менее чем 10 матчами: ${forward.lowSample.length} — коэффициент сильно стянут к нулю.</p>`:''}
         ${forward.confounded.length?`<p class="r-note r-thin">Игроков, неотличимых от партнёров: ${forward.confounded.length} — их личный вклад по этим данным не выделяется.</p>`:''}`;
