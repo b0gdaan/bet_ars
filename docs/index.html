@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CS2 Match Lab — демонстрация</title>
-<meta name="description" content="Предматчевая модель Counter-Strike 2: Glicko-2 и логистическая регрессия на 40 тысячах профессиональных матчей.">
+<meta name="description" content="Предматчевая модель Counter-Strike 2: Glicko-2 и логистическая регрессия на более чем 40 тысячах профессиональных матчей.">
 <link rel="icon" href="favicon.svg">
 <link rel="stylesheet" href="rapm.css">
 <style>
@@ -194,9 +194,10 @@ fetch('data.json').then(r=>r.json()).then(d=>{
 
   const drawTeams=q=>{
     const list=d.teams.filter(t=>t.name.toLowerCase().includes(q.toLowerCase())).slice(0,120);
-    el('#teams tbody').innerHTML=list.length?list.map((t,i)=>`<tr><td class="muted">${d.teams.indexOf(t)+1}</td><td>${esc(t.name)}</td><td class="num">${t.played}</td><td class="num">${pct(t.winRate)}</td><td class="num" style="color:var(--accent)">${Math.round(t.rating)}</td><td class="num muted">±${Math.round(t.rd)}</td><td class="dots">${dots(t.form)}</td></tr>`).join(''):'<tr><td colspan="7" class="muted">Ничего не найдено</td></tr>';
+    el('#teams tbody').innerHTML=list.length?list.map((t,i)=>`<tr><td class="muted">${d.teams.indexOf(t)+1}</td><td>${esc(t.name)}</td><td class="num">${t.played}</td><td class="num">${pct(t.winRate)}</td><td class="num" style="color:var(--accent)">${Math.round(t.rating)}</td><td class="num muted">±${Math.round(t.rd)}</td><td class="dots">${dots(t.recent)}</td></tr>`).join(''):'<tr><td colspan="7" class="muted">Ничего не найдено</td></tr>';
   };
-  const dots=form=>{const w=Math.round((form??.5)*5);return Array.from({length:5},(_,i)=>`<i class="${i<w?'':'l'}">${i<w?'W':'L'}</i>`).join('');};
+  // The real last results, oldest first; an older snapshot without them shows a dash.
+  const dots=recent=>Array.isArray(recent)&&recent.length?recent.map(x=>`<i class="${x?'':'l'}">${x?'W':'L'}</i>`).join(''):'<span class="muted">—</span>';
   drawTeams('');
   el('#q').oninput=ev=>drawTeams(ev.target.value);
 

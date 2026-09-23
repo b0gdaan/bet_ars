@@ -17,7 +17,8 @@ import { liveEvaluation,upcomingBoard } from './upcoming.js';
 import { SETTINGS } from './settings.js';
 
 const sources=new Set(['bo3','faceit','pandascore']);
-const csvCell=v=>{let s=v===null||v===undefined?'':String(v);if(/^[=+\-@\t\r]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';};
+// Only text can smuggle a formula into Excel; a negative number must stay a number.
+const csvCell=v=>{let s=v===null||v===undefined?'':String(v);if(typeof v==='string'&&/^[=+\-@\t\r]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';};
 export function csv(rows) { if(!rows.length)return '';const fields=Object.keys(rows[0]);return '\ufeff'+[fields,...rows.map(r=>fields.map(f=>r[f]))].map(row=>row.map(csvCell).join(',')).join('\r\n'); }
 export function createApp(store=new Store()) {
   let job=null;
@@ -25,7 +26,8 @@ export function createApp(store=new Store()) {
   const loaded=new Map();
   const loadMatches=source=>{const key=store.version(source),hit=loaded.get(source);if(hit?.key===key)return hit.rows;const rows=store.all(source);loaded.set(source,{key,rows});return rows;};
   const csrf=randomBytes(24).toString('hex');
-  async function body(req) {let value='';for await(const c of req){value+=c;if(value.length>16000)throw new Error('Слишком большой запрос');}return JSON.parse(value||'{}');}
+  // Collect bytes, not strings: a multibyte character may be split between two chunks.
+  async function body(req) {const chunks=[];let size=0;for await(const c of req){size+=c.length;if(size>16000)throw new Error('Слишком большой запрос');chunks.push(c);}const value=Buffer.concat(chunks).toString('utf8');return JSON.parse(value||'{}');}
   function json(res,data,status=200) {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
   const server=createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');

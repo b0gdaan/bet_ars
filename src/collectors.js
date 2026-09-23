@@ -47,6 +47,7 @@ export async function collect(store,input,onProgress=()=>{},{client=new Client(s
       for(const [index,m] of missing.entries()) {
         update(`BO3: статистика игроков ${index+1}/${missing.length} · ${m.teamA.name} — ${m.teamB.name}`);
         try {
+          if(!m.slug)throw new Error('нет slug матча, статистику запросить нельзя');
           let data=await client.get(BO,`/matches/${encodeURIComponent(m.slug)}/players_stats`);
           m.players=bo3Players(data,m);
           if(!m.players.length) { data=await client.get(BO,`/matches/${encodeURIComponent(m.slug)}/short_players_stats`);m.players=bo3Players(data,m,true); }
@@ -54,7 +55,13 @@ export async function collect(store,input,onProgress=()=>{},{client=new Client(s
           if(m.players.length) {m.statsFetchedAt=m.statsCheckedAt;report.withStats++;}
           else warn(`${m.id}: статистика игроков пока отсутствует`);
           store.put(m);
-        } catch(e) {if(e instanceof ApiError&&[401,403,429].includes(e.status))throw e;warn(`${m.id}: ${e.message}`);}
+        } catch(e) {
+          if(e instanceof ApiError&&[401,403,429].includes(e.status))throw e;
+          // Mark the attempt so the match waits a day: otherwise it heads the queue every run
+          // and spends the stats budget again (a 404 or a persistent 5xx never resolves itself).
+          m.statsCheckedAt=new Date().toISOString();store.put(m);
+          warn(`${m.id}: ${e.message}`);
+        }
       }
     } else if(o.source==='pandascore') {
       let page=1;

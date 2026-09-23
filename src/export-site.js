@@ -49,7 +49,7 @@ const snapshot={
     experienced:report.experienced,cold:report.cold,calibration:report.calibration.filter(b=>b.count),note:report.note},
   // The blend reads the margin-of-victory Elo, not the plain one shown in the table.
   teams:top.map(t=>({id:t.id,name:t.name,rating:t.rating,rd:t.rd,elo:model.engines.eloPlus.rating([t.id],now),played:t.played,wins:t.wins,
-    winRate:t.winRate,form:t.form===null?0.5:t.form,
+    winRate:t.winRate,form:t.form===null?0.5:t.form,recent:t.recent.slice(-5),
     idle:t.last?Math.min(SETTINGS.model.restCapDays,Math.max(0,(now-Date.parse(t.last))/day)):SETTINGS.model.restCapDays,
     last:t.last})),
   h2h,

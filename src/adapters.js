@@ -13,7 +13,7 @@ export function bo3Match(m) {
     const a=wid===m.team1.id;
     return {id:String(g.id),name:g.map_name,number:g.number,winner:wid?`bo3:${wid}`:null,scoreA:wid?num(a?g.winner_clan_score:g.loser_clan_score):null,scoreB:wid?num(a?g.loser_clan_score:g.winner_clan_score):null};
   });
-  return {id:`bo3:${m.id}`,externalId:String(m.id),source:'bo3',kind:'pro',slug:m.slug,start,end,bestOf:num(m.bo_type),teamA,teamB,winner:`bo3:${m.winner_team_id}`,scoreA:num(m.team1_score),scoreB:num(m.team2_score),event:m.tournament?.name||'',url:`https://bo3.gg/matches/${encodeURIComponent(m.slug)}`,maps,players:[],endEstimated:!end};
+  return {id:`bo3:${m.id}`,externalId:String(m.id),source:'bo3',kind:'pro',slug:m.slug,start,end,bestOf:num(m.bo_type),teamA,teamB,winner:`bo3:${m.winner_team_id}`,scoreA:num(m.team1_score),scoreB:num(m.team2_score),event:m.tournament?.name||'',url:m.slug?`https://bo3.gg/matches/${encodeURIComponent(m.slug)}`:null,maps,players:[],endEstimated:!end};
 }
 export function bo3Players(data,match,short=false) {
   return values(data).map(p=>{
@@ -42,6 +42,8 @@ export function pandaMatch(m) {
 
 export function faceitMatch(m,stats={}) {
   if (m.game!=='cs2' || m.status!=='FINISHED' || !m.results?.winner) return null;
+  // Without any timestamp the match cannot be placed in time; new Date(NaN) would throw.
+  if (!Number.isFinite(Number(m.started_at||m.finished_at))) return null;
   const entries=Object.entries(m.teams||{});
   if (entries.length!==2 || !entries.some(([k])=>k===m.results.winner)) return null;
   const start=new Date((m.started_at||m.finished_at)*1000).toISOString();
