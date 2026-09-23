@@ -4,6 +4,7 @@ import { internalQuote } from './matcher.js';
 import { selectQuote,marketProbabilities,assertDecision,valueAtOdds } from './market.js';
 import { simulate,STRATEGIES,STAKING,blockInterval } from './simulate.js';
 import { consensusBacktest } from './consensus.js';
+import { SETTINGS } from '../settings.js';
 
 const logit=p=>Math.log(Math.max(1e-6,p)/Math.max(1e-6,1-p));
 const avg=x=>x.length?x.reduce((s,v)=>s+v,0)/x.length:null;
@@ -37,7 +38,7 @@ export function joinPredictions(predictions,matches,quotes,{maxAgeMs=3600000}={}
   }
   return {rows:rows.sort((a,b)=>Date.parse(a.decisionAt)-Date.parse(b.decisionAt)||a.matchId.localeCompare(b.matchId)),excluded};
 }
-export function bettingReport(matches,quotes,{commission=0,fee=0,leadMinutes=15,maxAgeMinutes=60,includeTrades=false}={}){
+export function bettingReport(matches,quotes,{commission=0,fee=0,leadMinutes=SETTINGS.betting.leadMinutes,maxAgeMinutes=SETTINGS.betting.maxQuoteAgeMinutes,includeTrades=false}={}){
   valueAtOdds(.5,2,commission,fee);
   if(!Number.isFinite(leadMinutes)||leadMinutes<0||leadMinutes>1440||!Number.isFinite(maxAgeMinutes)||maxAgeMinutes<=0)throw new Error('Некорректное время прогноза/свежести котировок');
   const events=new Map(quotes.map(q=>[JSON.stringify([q.provider,q.externalMatchId]),q]));

@@ -2,6 +2,9 @@
 // snapshot; pure rendering from data that was logged before each match started.
 import { kellyPlan,FLAG_EV } from './odds-market.js';
 
+// Current ⚠ threshold; set from settings.js (via the snapshot) when the view renders.
+let flagEv=FLAG_EV;
+
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct=(x,d=1)=>x==null||!Number.isFinite(x)?'—':(x*100).toFixed(d)+'%';
 const dec=(x,d=4)=>x==null||!Number.isFinite(x)?'—':Number(x).toFixed(d);
@@ -42,7 +45,7 @@ function rowHtml(f,x){
       <div class="r-muted" style="font-size:11px">${esc(f.event)}${f.bestOf?` · BO${f.bestOf}`:''} ${stars(f.stars)}${f.coldStart?' · <span class="r-thin">мало матчей</span>':''}</div></td>
     <td class="r-num"><b>${pct(f.p)}</b><div class="r-muted" style="font-size:11px">${esc(fav==='A'?f.teamA:f.teamB)} ${pct(pf,0)}</div></td>
     <td class="r-num">${line?`${dec(line.oddsA,2)} / ${dec(line.oddsB,2)}<div class="r-muted" style="font-size:11px">рынок ${pct(f.marketA)}</div>`:'<span class="r-muted">нет линии</span>'}</td>
-    <td class="r-num">${ev?`<span class="${ev.ev>FLAG_EV?'r-thin':ev.ev>0?'good':'bad'}" ${ev.ev>FLAG_EV?'title="Слишком большое расхождение с рынком: скорее модель чего-то не знает"':''}>${ev.ev>FLAG_EV?'⚠ ':''}${ev.ev>0?'+':''}${pct(ev.ev)}</span><div class="r-muted" style="font-size:11px">на ${esc(ev.side==='A'?f.teamA:f.teamB)} @ ${dec(ev.odds,2)}</div>`:'—'}</td>
+    <td class="r-num">${ev?`<span class="${ev.ev>flagEv?'r-thin':ev.ev>0?'good':'bad'}" ${ev.ev>flagEv?'title="Слишком большое расхождение с рынком: скорее модель чего-то не знает"':''}>${ev.ev>flagEv?'⚠ ':''}${ev.ev>0?'+':''}${pct(ev.ev)}</span><div class="r-muted" style="font-size:11px">на ${esc(ev.side==='A'?f.teamA:f.teamB)} @ ${dec(ev.odds,2)}</div>`:'—'}</td>
     <td class="r-num">${stakeCell(x)}</td>
   </tr>`;
 }
@@ -51,8 +54,10 @@ const SETTINGS='cs2-kelly-settings';
 function loadSettings(){try{return {...JSON.parse(localStorage.getItem(SETTINGS)||'{}')};}catch{return {};}}
 function saveSettings(v){try{localStorage.setItem(SETTINGS,JSON.stringify(v));}catch{}}
 
-export function renderUpcoming(container,{upcoming=[],live=null,generated=null}={}){
-  const state={withLine:false,starred:false,bank:2000,k:.25,cap:.05,totalCap:.3,skipFlagged:true,...loadSettings()};
+export function renderUpcoming(container,{upcoming=[],live=null,generated=null,settings=null}={}){
+  // Defaults come from settings.js; a viewer's own saved choices override them.
+  const s=settings||{};flagEv=s.flagEv??FLAG_EV;
+  const state={withLine:false,starred:false,bank:s.bank??2000,k:s.kellyFraction??.25,cap:s.maxStake??.05,totalCap:s.maxTotal??.3,skipFlagged:true,...loadSettings(),flagEv};
   container.innerHTML=`<div class="r-root">
     <div class="r-panel"><div class="r-head"><h3>Ближайшие матчи</h3><span class="r-tag">${fmt(upcoming.length)} В СНИМКЕ</span></div><div class="r-body">
       <p class="r-note" style="margin-top:0">Прогноз командной модели, переобученной на всей истории к моменту обновления${generated?` (${when(generated)})`:''}. Линия — предматчевый коэффициент партнёрского букмекера bo3.gg на тот же момент, рынок — его вероятность без маржи. EV — ожидание на лучшую по модели сторону до комиссий.</p>

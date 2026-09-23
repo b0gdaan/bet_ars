@@ -4,6 +4,7 @@
 import { walkForward,predictMatchup } from './model.js';
 import { marketProbabilities,valueAtOdds } from './odds/market.js';
 import { probabilityMetrics } from './rapm.js';
+import { SETTINGS } from './settings.js';
 
 const BO='https://api.bo3.gg/api/v1',DAY=86400_000;
 const iso=x=>Number.isFinite(Date.parse(x))?new Date(x).toISOString():null;
@@ -109,7 +110,7 @@ export function liveEvaluation(matches,forecasts) {
 
 
 // What the page shows: the latest logged forecast for each match still ahead.
-export function upcomingBoard(upcoming,forecasts,now=Date.now(),{hours=72,max=150}={}) {
+export function upcomingBoard(upcoming,forecasts,now=Date.now(),{hours=SETTINGS.update.boardHours,max=150}={}) {
   const latest=new Map();
   for(const f of forecasts){const prev=latest.get(f.matchId);if(!prev||prev.madeAt<f.madeAt)latest.set(f.matchId,f);}
   return upcoming.filter(m=>Date.parse(m.start)>now&&Date.parse(m.start)<=now+hours*3600000)

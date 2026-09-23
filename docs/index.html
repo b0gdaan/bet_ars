@@ -234,7 +234,7 @@ fetch('data.json').then(r=>r.json()).then(d=>{
     .then(({renderMarketLab})=>renderMarketLab(el('#market-root'),d.marketLab))
     .catch(err=>{el('#market-root').textContent='Раздел рынка не загрузился: '+err.message;});
   import('./upcoming-view.js')
-    .then(({renderUpcoming})=>renderUpcoming(el('#upcoming-root'),{upcoming:d.upcoming||[],live:d.live||null,generated:d.generated}))
+    .then(({renderUpcoming})=>renderUpcoming(el('#upcoming-root'),{upcoming:d.upcoming||[],live:d.live||null,generated:d.generated,settings:d.settings||null}))
     .catch(err=>{el('#upcoming-root').innerHTML='<div class="card">Ближайшие матчи не загрузились: '+esc(err.message)+'</div>';});
 
   import('./rapm.js')

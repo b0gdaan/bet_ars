@@ -10,11 +10,12 @@ import { finalTime } from '../model.js';
 import { internalQuote } from './matcher.js';
 import { selectQuote,marketProbabilities } from './market.js';
 import { blockInterval } from './simulate.js';
+import { SETTINGS } from '../settings.js';
 
 const avg=x=>x.length?x.reduce((s,v)=>s+v,0)/x.length:null;
 
 // quotes: one tradable quote per bookmaker, already oriented to the match sides.
-export function consensusSignal(quotes,{alpha=0.05,minBooks=2}={}) {
+export function consensusSignal(quotes,{alpha=SETTINGS.betting.consensusAlpha,minBooks=2}={}) {
   if(!(alpha>=0&&alpha<0.5))throw new Error('alpha должна быть в [0; 0.5)');
   if(quotes.length<minBooks)return null;
   return ['A','B'].map(side=>{
@@ -25,7 +26,7 @@ export function consensusSignal(quotes,{alpha=0.05,minBooks=2}={}) {
   });
 }
 
-export function consensusBacktest(matches,quotes,{alpha=0.05,minBooks=2,leadMinutes=15,maxAgeMinutes=60,commission=0,fee=0,stake=100}={}) {
+export function consensusBacktest(matches,quotes,{alpha=SETTINGS.betting.consensusAlpha,minBooks=2,leadMinutes=SETTINGS.betting.leadMinutes,maxAgeMinutes=SETTINGS.betting.maxQuoteAgeMinutes,commission=0,fee=0,stake=100}={}) {
   const byMatch=new Map(matches.map(m=>[m.id,m])),grouped=new Map();
   for(const q of quotes){
     if(q.matchStatus!=='matched'||q.marketType!=='match_winner')continue;

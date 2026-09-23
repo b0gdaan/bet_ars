@@ -13,6 +13,7 @@ import { buildMaps } from './maps.js';
 import { bettingReport } from './odds/backtest.js';
 import { allOdds } from './odds/store.js';
 import { liveEvaluation,upcomingBoard } from './upcoming.js';
+import { SETTINGS } from './settings.js';
 
 const TEAM_LIMIT=400;
 const store=new Store();
@@ -49,7 +50,7 @@ const snapshot={
   // The blend reads the margin-of-victory Elo, not the plain one shown in the table.
   teams:top.map(t=>({id:t.id,name:t.name,rating:t.rating,rd:t.rd,elo:model.engines.eloPlus.rating([t.id],now),played:t.played,wins:t.wins,
     winRate:t.winRate,form:t.form===null?0.5:t.form,
-    idle:t.last?Math.min(60,Math.max(0,(now-Date.parse(t.last))/day)):60,
+    idle:t.last?Math.min(SETTINGS.model.restCapDays,Math.max(0,(now-Date.parse(t.last))/day)):SETTINGS.model.restCapDays,
     last:t.last})),
   h2h,
   recent:[...matches].slice(-12).reverse().map(m=>({start:m.start,teamA:m.teamA.name,teamB:m.teamB.name,
@@ -67,6 +68,7 @@ snapshot.marketLab={betting:bettingReport(matches,odds),maps:{...maps,teams:maps
 // Forecasts come from the append-only log, never recomputed here: the page shows what was said in advance.
 snapshot.upcoming=upcomingBoard(upcomingList,forecastLog,now);
 snapshot.live=liveEvaluation(matches,forecastLog);
+snapshot.settings=SETTINGS.betting;
 console.log(`Ближайшие матчи: ${snapshot.upcoming.length}, прогнозов засчитано: ${snapshot.live.scored}`);
 {const r=snapshot.marketLab.maps.report;console.log(`Карты: тест ${r.withMaps?.count} карт, Δ Brier ${r.deltaBrier?.toFixed(4)}, 95% ${r.deltaBrier95?.low.toFixed(4)} … ${r.deltaBrier95?.high.toFixed(4)}`);}
 for(const fit of [rapm.series,rapm.round])if(fit.status==='trained'){
@@ -85,7 +87,7 @@ const pair=(x,y)=>{
   const phi=Math.sqrt((x.rd/SCALE)**2+(y.rd/SCALE)**2);
   const f=[(x.elo-y.elo)/400,g(phi)*(x.rating-y.rating)/SCALE,x.winRate-y.winRate,
     (x.form??0.5)-(y.form??0.5),(hA-hB)/(1+hA+hB),Math.log1p(x.played)-Math.log1p(y.played),
-    (Math.min(60,x.idle)-Math.min(60,y.idle))/30];
+    (x.idle-y.idle)/30];
   let z=0;for(let i=0;i<f.length;i++)z+=snapshot.model.weights[i]*(f[i]/snapshot.model.scale[i]);
   return 1/(1+Math.exp(-z));
 };

@@ -14,6 +14,7 @@ import { buildMaps } from './maps.js';
 import { bettingReport } from './odds/backtest.js';
 import { allOdds } from './odds/store.js';
 import { liveEvaluation,upcomingBoard } from './upcoming.js';
+import { SETTINGS } from './settings.js';
 
 const sources=new Set(['bo3','faceit','pandascore']);
 const csvCell=v=>{let s=v===null||v===undefined?'':String(v);if(/^[=+\-@\t\r]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';};
@@ -48,7 +49,7 @@ export function createApp(store=new Store()) {
         if(req.method!=='GET')return json(res,{error:'Метод не поддерживается'},405);
         if(url.pathname==='/api/status')return json(res,{csrf,job,counts:store.counts(),runs:store.runs(),keys:{faceit:!!process.env.FACEIT_API_KEY,pandascore:!!process.env.PANDASCORE_API_KEY}});
         const matches=loadMatches(source);
-        if(url.pathname==='/api/upcoming'){const log=store.forecasts();return json(res,source==='bo3'?{upcoming:upcomingBoard(store.upcoming('bo3'),log),live:liveEvaluation(matches,log)}:{upcoming:[],live:liveEvaluation([],[])});}
+        if(url.pathname==='/api/upcoming'){const log=store.forecasts();return json(res,source==='bo3'?{upcoming:upcomingBoard(store.upcoming('bo3'),log),live:liveEvaluation(matches,log),settings:SETTINGS.betting}:{upcoming:[],live:liveEvaluation([],[]),settings:SETTINGS.betting});}
         if(url.pathname==='/api/market-lab')return json(res,{betting:bettingReport(matches,source==='bo3'?allOdds(store):[]),maps:buildMaps(matches)});
         if(url.pathname==='/api/rapm')return json(res,buildRapm(matches,store.rounds(source)));
         const scoutingOptions=()=>({roles:loadRoles(),...(url.searchParams.has('asOf')?{asOf:url.searchParams.get('asOf')}:{}),...(url.searchParams.has('days')?{days:Number(url.searchParams.get('days'))}:{}),...(url.searchParams.has('minMatches')?{minMatches:Number(url.searchParams.get('minMatches'))}:{})});

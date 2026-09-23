@@ -3,6 +3,7 @@
 // a result reaches the engines only after its own end time (see the pending queue).
 // A side is a list of ids: one team id for professional matches, five player ids for
 // a FACEIT lineup, where identity travels with the players and not with the name.
+import { SETTINGS } from './settings.js';
 const clamp=(x,lo,hi)=>Math.min(hi,Math.max(lo,x));
 export const mean=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
 const DAY=86400_000;
@@ -122,7 +123,9 @@ export function fitLogistic(X,y,{iterations=400,rate=0.5,l2=1e-3}={}) {
 }
 
 export const FEATURES=['eloDiff','glickoLogit','winRateDiff','formDiff','h2hDiff','experienceDiff','restDiff'];
-export const DEFAULTS={k:40,plus:{k:40,mov:true,halfLife:0},glicko:{tau:0.5,rd:350,periodDays:7}};
+// Tunable numbers live in settings.js so they can be changed without reading the model code.
+const M=SETTINGS.model;
+export const DEFAULTS={k:M.eloK,plus:{k:M.eloK,mov:true,halfLife:0},glicko:{tau:M.glickoTau,rd:M.glickoStartRd,periodDays:M.glickoPeriodDays}};
 
 // Sides: one team id per side for pro matches, the five player ids for a FACEIT lineup.
 export function sides(m) {
@@ -138,7 +141,7 @@ export function featureRow(ctx,A,B,idsA,idsB,now) {
   const a=book(A),b=book(B);
   const ga=engines.glicko.side(idsA,now),gb=engines.glicko.side(idsB,now);
   const phi=Math.sqrt((ga.rd/SCALE)**2+(gb.rd/SCALE)**2);
-  const rest=x=>x.last?clamp((now-x.last)/DAY,0,60):60;
+  const rest=x=>x.last?clamp((now-x.last)/DAY,0,M.restCapDays):M.restCapDays;
   const h=h2h.get(pairKey(A,B))||[0,0],[hA,hB]=A<B?h:[h[1],h[0]];
   return [
     (engines.eloPlus.rating(idsA,now)-engines.eloPlus.rating(idsB,now))/400,
@@ -153,7 +156,7 @@ export function featureRow(ctx,A,B,idsA,idsB,now) {
 
 // Walk-forward comparison of several engines on one real history.
 // Warmup fits the logistic blend; the held-out tail is never seen while fitting.
-export function walkForward(matches,{split=0.8,k=DEFAULTS.k,plus=DEFAULTS.plus,glicko=DEFAULTS.glicko,forecastLeadMs=0}={}) {
+export function walkForward(matches,{split=1-M.testShare,k=DEFAULTS.k,plus=DEFAULTS.plus,glicko=DEFAULTS.glicko,forecastLeadMs=0}={}) {
   if(!Number.isFinite(forecastLeadMs)||forecastLeadMs<0)throw new Error('Некорректный forecastLeadMs');
   const sorted=[...matches].sort((a,b)=>a.start.localeCompare(b.start)||a.id.localeCompare(b.id));
   const engines={winrate:new WinRate(),elo:new Elo({k}),eloPlus:new Elo(plus),glicko:new Glicko2(glicko)};
@@ -165,7 +168,7 @@ export function walkForward(matches,{split=0.8,k=DEFAULTS.k,plus=DEFAULTS.plus,g
     const {m,y,available:now,idsA,idsB}=p;
     for(const e of Object.values(engines))e.update(idsA,idsB,y,now,m);
     for(const [id,result] of [[m.teamA.id,y],[m.teamB.id,1-y]]){
-      const s=book(id);s.played++;s.wins+=result;s.recent.push(result);s.recent=s.recent.slice(-10);s.last=now;
+      const s=book(id);s.played++;s.wins+=result;s.recent.push(result);s.recent=s.recent.slice(-M.formWindow);s.last=now;
     }
     const key=pairKey(m.teamA.id,m.teamB.id),h=h2h.get(key)||[0,0];
     h[m.teamA.id<m.teamB.id?(y?0:1):(y?1:0)]++;h2h.set(key,h);

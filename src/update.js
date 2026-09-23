@@ -12,6 +12,7 @@ import { Client } from './http.js';
 import { collect } from './collectors.js';
 import { fetchUpcoming,normalizeUpcoming,lineQuote,productionModel,forecastUpcoming,liveEvaluation } from './upcoming.js';
 import { importKnownOdds } from './odds/store.js';
+import { SETTINGS } from './settings.js';
 
 const DAY=86400_000,args=process.argv.slice(2);
 const flag=name=>args.includes(name);
@@ -44,7 +45,8 @@ export async function refresh({days=3,ahead=7,stats=300,now=Date.now(),store}={}
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   const store=new Store();let report;
   try{
-    report=await refresh({days:option('--days',3,1,30),ahead:option('--ahead',7,1,14),stats:option('--stats',300,0,2000),store});
+    const U=SETTINGS.update;
+    report=await refresh({days:option('--days',U.resultsDays,1,30),ahead:option('--ahead',U.aheadDays,1,14),stats:option('--stats',U.statsLimit,0,2000),store});
     console.log(JSON.stringify(report,null,2));
   }catch(e){console.error(e.message);process.exitCode=1;}
   finally{store.close();}

@@ -30,7 +30,8 @@ export const FLAG_EV=.15;
 // Kelly sizing for the bets on screen. f* = (q·p − 1)/(p − 1) comes from valueAtOdds, the same
 // function the backtest uses. Kelly assumes one bet at a time; these matches are simultaneous,
 // so a per-bet cap and a cap on the total at risk are applied on top of the fractional stake.
-export function kellyPlan(rows,{bank=2000,k=.25,cap=.05,totalCap=.3,skipFlagged=true}={}){
+// The browser receives these defaults from settings.js through the data snapshot.
+export function kellyPlan(rows,{bank=2000,k=.25,cap=.05,totalCap=.3,skipFlagged=true,flagEv=FLAG_EV}={}){
   if(!(bank>0)||!(k>0&&k<=1)||!(cap>0&&cap<=1)||!(totalCap>0&&totalCap<=1))throw new Error('Банк > 0, доля Келли и лимиты — от 0 до 100%');
   const items=rows.map(f=>{
     const b=f.bestSide;
@@ -38,7 +39,7 @@ export function kellyPlan(rows,{bank=2000,k=.25,cap=.05,totalCap=.3,skipFlagged=
     // No commission on this line: the margin is already inside the odds, as the formula assumes.
     const q=b.side==='A'?f.p:1-f.p,full=valueAtOdds(q,b.odds).kelly;
     if(!(full>0))return {f,status:'no-edge',full:0,fraction:0,stake:0};
-    if(skipFlagged&&b.ev>FLAG_EV)return {f,status:'flagged',full,fraction:0,stake:0};
+    if(skipFlagged&&b.ev>flagEv)return {f,status:'flagged',full,fraction:0,stake:0};
     return {f,status:'bet',full,fraction:Math.min(cap,k*full),stake:0};
   });
   const wanted=items.reduce((s,x)=>s+x.fraction,0),scale=wanted>totalCap?totalCap/wanted:1;

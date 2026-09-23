@@ -56,3 +56,18 @@ test('Simultaneous bets are scaled down together to the total cap',()=>{
   assert.throws(()=>kellyPlan(rows,{k:1.5}),/Келли/);
   assert.throws(()=>kellyPlan(rows,{cap:2}),/лимиты/);
 });
+
+test('Tunable numbers come from settings.js and reach the model and the stake plan',async()=>{
+  const { SETTINGS }=await import('../src/settings.js');
+  const { DEFAULTS }=await import('../src/model.js');
+  assert.equal(DEFAULTS.k,SETTINGS.model.eloK);
+  assert.equal(DEFAULTS.glicko.rd,SETTINGS.model.glickoStartRd);
+  assert.equal(DEFAULTS.glicko.periodDays,SETTINGS.model.glickoPeriodDays);
+  // Every share is a fraction, not a percent: 0.15 means 15%.
+  for(const [k,v] of Object.entries({...SETTINGS.betting,testShare:SETTINGS.model.testShare}))
+    if(!['bank','leadMinutes','maxQuoteAgeMinutes'].includes(k))assert.ok(v>0&&v<=1,`${k} = ${v} должно быть долей от 0 до 1`);
+  // The ⚠ threshold is a parameter of the plan, so a changed setting changes which rows are skipped.
+  const r=row('z',.57,'A',2);
+  assert.equal(kellyPlan([r],{flagEv:.15,totalCap:1}).items[0].status,'bet');
+  assert.equal(kellyPlan([r],{flagEv:.10,totalCap:1}).items[0].status,'flagged');
+});
