@@ -23,3 +23,30 @@ export function selectQuote(quotes,time,{closing=false,maxAgeMs=3600000}={}){
 export function assertDecision(row){
   if(!(Date.parse(row.capturedAt)<=Date.parse(row.decisionAt)&&Date.parse(row.predictedAt)<=Date.parse(row.decisionAt)&&Date.parse(row.trainedThrough)<Date.parse(row.predictedAt)&&Date.parse(row.decisionAt)<Date.parse(row.startsAt)&&Date.parse(row.settledAt)>Date.parse(row.decisionAt)))throw new Error('Утечка будущего: время котировки, прогноза, обучения или результата не соответствует решению');
 }
+
+// Rows with a model/market gap this wide usually mean the model is missing information.
+export const FLAG_EV=.15;
+
+// Kelly sizing for the bets on screen. f* = (q·p − 1)/(p − 1) comes from valueAtOdds, the same
+// function the backtest uses. Kelly assumes one bet at a time; these matches are simultaneous,
+// so a per-bet cap and a cap on the total at risk are applied on top of the fractional stake.
+export function kellyPlan(rows,{bank=2000,k=.25,cap=.05,totalCap=.3,skipFlagged=true}={}){
+  if(!(bank>0)||!(k>0&&k<=1)||!(cap>0&&cap<=1)||!(totalCap>0&&totalCap<=1))throw new Error('Банк > 0, доля Келли и лимиты — от 0 до 100%');
+  const items=rows.map(f=>{
+    const b=f.bestSide;
+    if(!b)return {f,status:'no-line',full:0,fraction:0,stake:0};
+    // No commission on this line: the margin is already inside the odds, as the formula assumes.
+    const q=b.side==='A'?f.p:1-f.p,full=valueAtOdds(q,b.odds).kelly;
+    if(!(full>0))return {f,status:'no-edge',full:0,fraction:0,stake:0};
+    if(skipFlagged&&b.ev>FLAG_EV)return {f,status:'flagged',full,fraction:0,stake:0};
+    return {f,status:'bet',full,fraction:Math.min(cap,k*full),stake:0};
+  });
+  const wanted=items.reduce((s,x)=>s+x.fraction,0),scale=wanted>totalCap?totalCap/wanted:1;
+  for(const x of items)if(x.status==='bet'){
+    // The epsilon keeps 0.035 × 2000 at 70 rather than 69.999… rounded down to 69.
+    x.fraction*=scale;x.stake=Math.floor(x.fraction*bank+1e-9);
+    if(x.stake<1){x.status='tiny';x.stake=0;}
+  }
+  const bets=items.filter(x=>x.status==='bet'),total=bets.reduce((s,x)=>s+x.stake,0);
+  return {items,bets:bets.length,total,exposure:total/bank,scale,wanted};
+}
